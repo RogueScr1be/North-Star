@@ -6,7 +6,6 @@
  * Output is a draft only; manual tuning required before persisting to inventory.
  *
  * Usage:
- *   npm install d3-force
  *   node generate-coordinates.js /path/to/inventory.json > coordinates-draft.json
  */
 
@@ -14,36 +13,90 @@ const fs = require('fs');
 const { forceSimulation, forceLink, forceManyBody, forceCenter } = require('d3-force');
 
 function generateCoordinates(inventoryFile) {
+  if (!inventoryFile) {
+    throw new Error('Missing inventory file path. Usage: node generate-coordinates.js /path/to/inventory.json');
+  }
+
   const inventory = JSON.parse(fs.readFileSync(inventoryFile, 'utf8'));
-  const nodes = inventory.nodes.map((n, i) => ({ id: n.id, index: i }));
-  const edges = inventory.edges.map(e => ({
-    source: nodes.find(n => n.id === e.source_id).index,
-    target: nodes.find(n => n.id === e.target_id).index
+
+  if (!Array.isArray(inventory.nodes)) {
+    throw new Error('Inventory is missing a valid "nodes" array.');
+  }
+
+  if (!Array.isArray(inventory.edges)) {
+    throw new Error('Inventory is missing a valid "edges" array.');
+  }
+
+  if (!Array.isArray(inventory.projects)) {
+    throw new Error('Inventory is missing a valid "projects" array.');
+  }
+
+  const simEntities = [
+    ...inventory.projects.map((p) => ({
+      id: p.id,
+      kind: 'project',
+      label: p.name || p.title || p.id,
+    })),
+    ...inventory.nodes.map((n) => ({
+      id: n.id,
+      kind: 'node',
+      label: n.title || n.id,
+    })),
+  ];
+
+  const simNodes = simEntities.map((e, i) => ({
+    id: e.id,
+    kind: e.kind,
+    label: e.label,
+    index: i,
   }));
 
-  // Force simulation
-  const simulation = forceSimulation(nodes)
-    .force('link', forceLink(edges).distance(80))
-    .force('charge', forceManyBody().strength(-200))
+  const nodeIndexById = new Map(simNodes.map((node, index) => [node.id, index]));
+
+  const links = inventory.edges.map((e) => {
+    const sourceId = e.source_node_id;
+    const targetId = e.target_node_id;
+
+    const sourceIndex = nodeIndexById.get(sourceId);
+    const targetIndex = nodeIndexById.get(targetId);
+
+    if (sourceIndex === undefined || targetIndex === undefined) {
+      throw new Error(
+        `Edge references missing vertex: edge=${e.id || 'unknown'} source_node_id=${sourceId} target_node_id=${targetId}`
+      );
+    }
+
+    return {
+      source: sourceIndex,
+      target: targetIndex,
+    };
+  });
+
+  const simulation = forceSimulation(simNodes)
+    .force('link', forceLink(links).distance(80))
+    .force('charge', forceManyBody().strength(-220))
     .force('center', forceCenter(0, 0))
     .stop();
 
-  // Run 300 iterations
   for (let i = 0; i < 300; ++i) simulation.tick();
 
-  // Normalize to [-100, 100] range
-  const xs = nodes.map(n => n.x);
-  const ys = nodes.map(n => n.y);
-  const xMin = Math.min(...xs), xMax = Math.max(...xs);
-  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const xs = simNodes.map((n) => n.x ?? 0);
+  const ys = simNodes.map((n) => n.y ?? 0);
+
+  const xMin = Math.min(...xs);
+  const xMax = Math.max(...xs);
+  const yMin = Math.min(...ys);
+  const yMax = Math.max(...ys);
+
   const xRange = xMax - xMin || 1;
   const yRange = yMax - yMin || 1;
 
-  const coords = nodes.map((n, i) => ({
-    id: inventory.nodes[i].id,
-    x: ((n.x - xMin) / xRange - 0.5) * 200,
-    y: ((n.y - yMin) / yRange - 0.5) * 200,
-    z: 0
+  const coords = simNodes.map((n) => ({
+    id: n.id,
+    kind: n.kind,
+    x: Number((((n.x - xMin) / xRange - 0.5) * 200).toFixed(2)),
+    y: Number((((n.y - yMin) / yRange - 0.5) * 200).toFixed(2)),
+    z: 0,
   }));
 
   console.log(JSON.stringify(coords, null, 2));

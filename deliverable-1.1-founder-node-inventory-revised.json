@@ -73,9 +73,9 @@
       "ref_id": "proj-getit",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 70,
+      "y": 14,
+      "z": 24
     },
     {
       "id": "node-getit-constraint-realtime-scale",
@@ -94,9 +94,9 @@
       "ref_id": "proj-getit",
       "is_featured": false,
       "source_attribution": "strongly_inferred",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 74,
+      "y": 19,
+      "z": 22
     },
     {
       "id": "node-getit-constraint-material-ethics",
@@ -115,9 +115,9 @@
       "ref_id": "proj-getit",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 77,
+      "y": 11,
+      "z": 27
     },
     {
       "id": "node-getit-decision-invite-only",
@@ -136,9 +136,9 @@
       "ref_id": "proj-getit",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 46,
+      "y": 16.66,
+      "z": 34
     },
     {
       "id": "node-getit-decision-video-first",
@@ -157,9 +157,9 @@
       "ref_id": "proj-getit",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 44.54,
+      "y": 10.23,
+      "z": 31
     },
     {
       "id": "node-getit-decision-mvp-scope",
@@ -177,9 +177,9 @@
       "ref_id": "proj-getit",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 50.12,
+      "y": 10.33,
+      "z": 27
     },
     {
       "id": "node-getit-decision-ai-tagging",
@@ -197,9 +197,9 @@
       "ref_id": "proj-getit",
       "is_featured": false,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 51,
+      "y": 17,
+      "z": 38.67
     },
     {
       "id": "node-getit-metric-watchthrough",
@@ -217,9 +217,9 @@
       "ref_id": "proj-getit",
       "is_featured": false,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 45,
+      "y": -8,
+      "z": 33
     },
     {
       "id": "node-getit-failure-metrics-sparse",
@@ -238,9 +238,9 @@
       "ref_id": "proj-getit",
       "is_featured": false,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 60,
+      "y": -11,
+      "z": 30
     },
     {
       "id": "node-getit-outcome-mvp-capabilities",
@@ -258,9 +258,9 @@
       "ref_id": "proj-getit",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 74,
+      "y": -6,
+      "z": 35
     },
     {
       "id": "node-fastfood-constraint-simple",
@@ -279,9 +279,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 18,
+      "y": 70,
+      "z": -14
     },
     {
       "id": "node-fastfood-constraint-accessibility",
@@ -299,9 +299,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 13.5,
+      "y": 73.5,
+      "z": -16
     },
     {
       "id": "node-fastfood-decision-localfirst",
@@ -320,9 +320,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -11,
+      "y": 70,
+      "z": -12
     },
     {
       "id": "node-fastfood-decision-meal-planning-os",
@@ -340,9 +340,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -9,
+      "y": 66,
+      "z": -19
     },
     {
       "id": "node-fastfood-decision-biometric",
@@ -360,9 +360,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": false,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -14,
+      "y": 64,
+      "z": -21
     },
     {
       "id": "node-fastfood-decision-naiveexpo",
@@ -380,9 +380,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": false,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -17.56,
+      "y": 67,
+      "z": -17
     },
     {
       "id": "node-fastfood-decision-expansion-ux-short",
@@ -400,9 +400,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -16,
+      "y": -71,
+      "z": -20
     },
     {
       "id": "node-fastfood-outcome-philosophy",
@@ -420,9 +420,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 23,
+      "y": 56,
+      "z": -12
     },
     {
       "id": "node-fastfood-outcome-expansion-ux",
@@ -440,9 +440,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 15,
+      "y": 57,
+      "z": -14
     },
     {
       "id": "node-fastfood-outcome-biometric-integration",
@@ -460,9 +460,9 @@
       "ref_id": "proj-fastfood",
       "is_featured": false,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 18,
+      "y": 52,
+      "z": -17
     },
     {
       "id": "node-anansi-constraint-three-audiences",
@@ -481,9 +481,9 @@
       "ref_id": "proj-anansi",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -47,
+      "y": 18,
+      "z": -26
     },
     {
       "id": "node-anansi-decision-ai-native-wedge",
@@ -502,9 +502,9 @@
       "ref_id": "proj-anansi",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -65,
+      "y": 16,
+      "z": -34
     },
     {
       "id": "node-anansi-decision-lesson-to-game",
@@ -523,9 +523,9 @@
       "ref_id": "proj-anansi",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -71,
+      "y": 9.3,
+      "z": -36
     },
     {
       "id": "node-anansi-outcome-opportunity",
@@ -543,9 +543,9 @@
       "ref_id": "proj-anansi",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -50,
+      "y": 2,
+      "z": -26
     },
     {
       "id": "node-anansi-outcome-lesson-to-game-model",
@@ -563,9 +563,9 @@
       "ref_id": "proj-anansi",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -47,
+      "y": 5.7,
+      "z": -24
     },
     {
       "id": "node-northstar-decision-single-profile",
@@ -584,9 +584,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -18,
+      "y": -48,
+      "z": 22
     },
     {
       "id": "node-northstar-decision-three-surfaces",
@@ -604,9 +604,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -16.3,
+      "y": -50.66,
+      "z": 24
     },
     {
       "id": "node-northstar-decision-forceDirectedLayout",
@@ -624,9 +624,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -18,
+      "y": -55,
+      "z": 20
     },
     {
       "id": "node-northstar-decision-performance-budgets",
@@ -644,9 +644,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -13,
+      "y": -55,
+      "z": 18
     },
     {
       "id": "node-northstar-decision-bloom-postprocessing",
@@ -663,9 +663,9 @@
       "ref_id": "proj-northstar",
       "is_featured": false,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -20,
+      "y": -51,
+      "z": 27
     },
     {
       "id": "node-northstar-decision-reduced-motion",
@@ -682,9 +682,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -22,
+      "y": -54.66,
+      "z": 22
     },
     {
       "id": "node-northstar-constraint-immersive-clarity",
@@ -703,9 +703,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 7,
+      "y": -46,
+      "z": 16
     },
     {
       "id": "node-northstar-constraint-desktop-first",
@@ -723,9 +723,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 11,
+      "y": -42,
+      "z": 12
     },
     {
       "id": "node-northstar-constraint-three-surfaces-integrity",
@@ -743,9 +743,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "strongly_inferred",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 9,
+      "y": -50,
+      "z": 15
     },
     {
       "id": "node-northstar-failure-graph-model",
@@ -763,9 +763,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -10,
+      "y": -63,
+      "z": 17
     },
     {
       "id": "node-northstar-outcome-concept-model",
@@ -784,9 +784,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 8,
+      "y": -64,
+      "z": 20
     },
     {
       "id": "node-northstar-outcome-rendering-spec",
@@ -804,9 +804,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 16,
+      "y": -67,
+      "z": 23
     },
     {
       "id": "node-northstar-outcome-api-contract",
@@ -824,9 +824,9 @@
       "ref_id": "proj-northstar",
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 5.8,
+      "y": 70,
+      "z": 26
     },
     {
       "id": "skill-marketplace-design",
@@ -842,9 +842,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 20,
+      "y": -30,
+      "z": 24
     },
     {
       "id": "skill-local-first-architecture",
@@ -861,9 +861,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 30,
+      "y": 30,
+      "z": -14
     },
     {
       "id": "skill-ai-product-integration",
@@ -879,9 +879,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 0,
+      "y": 20,
+      "z": 8
     },
     {
       "id": "skill-constraint-navigation",
@@ -897,9 +897,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 0,
+      "y": -25,
+      "z": -9
     },
     {
       "id": "skill-graph-design",
@@ -915,9 +915,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -40,
+      "y": -45,
+      "z": 12
     },
     {
       "id": "skill-video-product-design",
@@ -933,9 +933,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 70,
+      "y": 34,
+      "z": 9
     },
     {
       "id": "skill-ai-native-os-design",
@@ -952,9 +952,9 @@
       ],
       "is_featured": true,
       "source_attribution": "strongly_inferred",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 40,
+      "y": 50,
+      "z": -10
     },
     {
       "id": "skill-realtime-systems",
@@ -970,9 +970,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": 40,
+      "y": -40,
+      "z": 21
     },
     {
       "id": "skill-accessibility-first-design",
@@ -988,9 +988,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -50,
+      "y": 39,
+      "z": -20
     },
     {
       "id": "skill-educational-product-design",
@@ -1006,9 +1006,9 @@
       ],
       "is_featured": true,
       "source_attribution": "explicit",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -54,
+      "y": -15,
+      "z": -19
     },
     {
       "id": "skill-simplicity-discipline",
@@ -1024,9 +1024,9 @@
       ],
       "is_featured": true,
       "source_attribution": "strongly_inferred",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -28,
+      "y": 58,
+      "z": -20
     },
     {
       "id": "skill-long-horizon-thinking",
@@ -1042,9 +1042,9 @@
       ],
       "is_featured": true,
       "source_attribution": "strongly_inferred",
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
+      "x": -25,
+      "y": -25,
+      "z": 9
     }
   ],
   "edges": [
@@ -1318,7 +1318,7 @@
       "source_node_id": "proj-northstar",
       "target_node_id": "node-northstar-decision-single-profile",
       "relationship_type": "defines",
-      "weight": 1.0,
+      "weight": 1,
       "metadata": {
         "explanation": "Single profile scope is locked foundational decision for North Star v0",
         "source_attribution": "explicit"

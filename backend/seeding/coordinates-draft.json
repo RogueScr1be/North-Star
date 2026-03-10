@@ -1,0 +1,380 @@
+[
+  {
+    "id": "proj-getit",
+    "kind": "project",
+    "x": 60,
+    "y": 0,
+    "z": 30
+  },
+  {
+    "id": "proj-fastfood",
+    "kind": "project",
+    "x": 0,
+    "y": 60,
+    "z": -18
+  },
+  {
+    "id": "proj-anansi",
+    "kind": "project",
+    "x": -60,
+    "y": 0,
+    "z": -30
+  },
+  {
+    "id": "proj-northstar",
+    "kind": "project",
+    "x": 20,
+    "y": 20,
+    "z": 18
+  },
+  {
+    "id": "node-getit-constraint-trust",
+    "kind": "node",
+    "x": 70,
+    "y": 14,
+    "z": 24
+  },
+  {
+    "id": "node-getit-constraint-realtime-scale",
+    "kind": "node",
+    "x": 74,
+    "y": 19,
+    "z": 22
+  },
+  {
+    "id": "node-getit-constraint-material-ethics",
+    "kind": "node",
+    "x": 77,
+    "y": 11,
+    "z": 27
+  },
+  {
+    "id": "node-getit-decision-invite-only",
+    "kind": "node",
+    "x": 46,
+    "y": 16.66,
+    "z": 34
+  },
+  {
+    "id": "node-getit-decision-video-first",
+    "kind": "node",
+    "x": 44.54,
+    "y": 10.23,
+    "z": 31
+  },
+  {
+    "id": "node-getit-decision-mvp-scope",
+    "kind": "node",
+    "x": 50.12,
+    "y": 10.33,
+    "z": 27
+  },
+  {
+    "id": "node-getit-decision-ai-tagging",
+    "kind": "node",
+    "x": 51,
+    "y": 17,
+    "z": 38.67
+  },
+  {
+    "id": "node-getit-metric-watchthrough",
+    "kind": "node",
+    "x": 45,
+    "y": -8,
+    "z": 33
+  },
+  {
+    "id": "node-getit-failure-metrics-sparse",
+    "kind": "node",
+    "x": 60,
+    "y": -11,
+    "z": 30
+  },
+  {
+    "id": "node-getit-outcome-mvp-capabilities",
+    "kind": "node",
+    "x": 74,
+    "y": -6,
+    "z": 35
+  },
+  {
+    "id": "node-fastfood-constraint-simple",
+    "kind": "node",
+    "x": 18,
+    "y": 70,
+    "z": -14
+  },
+  {
+    "id": "node-fastfood-constraint-accessibility",
+    "kind": "node",
+    "x": 13.5,
+    "y": 73.5,
+    "z": -16
+  },
+  {
+    "id": "node-fastfood-decision-localfirst",
+    "kind": "node",
+    "x": -11,
+    "y": 70,
+    "z": -12
+  },
+  {
+    "id": "node-fastfood-decision-meal-planning-os",
+    "kind": "node",
+    "x": -9,
+    "y": 66,
+    "z": -19
+  },
+  {
+    "id": "node-fastfood-decision-biometric",
+    "kind": "node",
+    "x": -14,
+    "y": 64,
+    "z": -21
+  },
+  {
+    "id": "node-fastfood-decision-naiveexpo",
+    "kind": "node",
+    "x": -17.56,
+    "y": 67,
+    "z": -17
+  },
+  {
+    "id": "node-fastfood-decision-expansion-ux-short",
+    "kind": "node",
+    "x": -16,
+    "y": -71,
+    "z": -20
+  },
+  {
+    "id": "node-fastfood-outcome-philosophy",
+    "kind": "node",
+    "x": 23,
+    "y": 56,
+    "z": -12
+  },
+  {
+    "id": "node-fastfood-outcome-expansion-ux",
+    "kind": "node",
+    "x": 15,
+    "y": 57,
+    "z": -14
+  },
+  {
+    "id": "node-fastfood-outcome-biometric-integration",
+    "kind": "node",
+    "x": 18,
+    "y": 52,
+    "z": -17
+  },
+  {
+    "id": "node-anansi-constraint-three-audiences",
+    "kind": "node",
+    "x": -47,
+    "y": 18,
+    "z": -26
+  },
+  {
+    "id": "node-anansi-decision-ai-native-wedge",
+    "kind": "node",
+    "x": -65,
+    "y": 16,
+    "z": -34
+  },
+  {
+    "id": "node-anansi-decision-lesson-to-game",
+    "kind": "node",
+    "x": -71,
+    "y": 9.3,
+    "z": -36
+  },
+  {
+    "id": "node-anansi-outcome-opportunity",
+    "kind": "node",
+    "x": -50,
+    "y": 2,
+    "z": -26
+  },
+  {
+    "id": "node-anansi-outcome-lesson-to-game-model",
+    "kind": "node",
+    "x": -47,
+    "y": 5.7,
+    "z": -24
+  },
+  {
+    "id": "node-northstar-decision-single-profile",
+    "kind": "node",
+    "x": -18,
+    "y": -48,
+    "z": 22
+  },
+  {
+    "id": "node-northstar-decision-three-surfaces",
+    "kind": "node",
+    "x": -16.3,
+    "y": -50.66,
+    "z": 24
+  },
+  {
+    "id": "node-northstar-decision-forceDirectedLayout",
+    "kind": "node",
+    "x": -18,
+    "y": -55,
+    "z": 20
+  },
+  {
+    "id": "node-northstar-decision-performance-budgets",
+    "kind": "node",
+    "x": -13,
+    "y": -55,
+    "z": 18
+  },
+  {
+    "id": "node-northstar-decision-bloom-postprocessing",
+    "kind": "node",
+    "x": -20,
+    "y": -51,
+    "z": 27
+  },
+  {
+    "id": "node-northstar-decision-reduced-motion",
+    "kind": "node",
+    "x": -22,
+    "y": -54.66,
+    "z": 22
+  },
+  {
+    "id": "node-northstar-constraint-immersive-clarity",
+    "kind": "node",
+    "x": 7,
+    "y": -46,
+    "z": 16
+  },
+  {
+    "id": "node-northstar-constraint-desktop-first",
+    "kind": "node",
+    "x": 11,
+    "y": -42,
+    "z": 12
+  },
+  {
+    "id": "node-northstar-constraint-three-surfaces-integrity",
+    "kind": "node",
+    "x": 9,
+    "y": -50,
+    "z": 15
+  },
+  {
+    "id": "node-northstar-failure-graph-model",
+    "kind": "node",
+    "x": -10,
+    "y": -63,
+    "z": 17
+  },
+  {
+    "id": "node-northstar-outcome-concept-model",
+    "kind": "node",
+    "x": 8,
+    "y": -64,
+    "z": 20
+  },
+  {
+    "id": "node-northstar-outcome-rendering-spec",
+    "kind": "node",
+    "x": 16,
+    "y": -67,
+    "z": 23
+  },
+  {
+    "id": "node-northstar-outcome-api-contract",
+    "kind": "node",
+    "x": 5.8,
+    "y": 70,
+    "z": 26
+  },
+  {
+    "id": "skill-marketplace-design",
+    "kind": "node",
+    "x": 20,
+    "y": -30,
+    "z": 24
+  },
+  {
+    "id": "skill-local-first-architecture",
+    "kind": "node",
+    "x": 30,
+    "y": 30,
+    "z": -14
+  },
+  {
+    "id": "skill-ai-product-integration",
+    "kind": "node",
+    "x": 0,
+    "y": 20,
+    "z": 8
+  },
+  {
+    "id": "skill-constraint-navigation",
+    "kind": "node",
+    "x": 0,
+    "y": -25,
+    "z": -9
+  },
+  {
+    "id": "skill-graph-design",
+    "kind": "node",
+    "x": -40,
+    "y": -45,
+    "z": 12
+  },
+  {
+    "id": "skill-video-product-design",
+    "kind": "node",
+    "x": 70,
+    "y": 34,
+    "z": 9
+  },
+  {
+    "id": "skill-ai-native-os-design",
+    "kind": "node",
+    "x": 40,
+    "y": 50,
+    "z": -10
+  },
+  {
+    "id": "skill-realtime-systems",
+    "kind": "node",
+    "x": 40,
+    "y": -40,
+    "z": 21
+  },
+  {
+    "id": "skill-accessibility-first-design",
+    "kind": "node",
+    "x": -50,
+    "y": 39,
+    "z": -20
+  },
+  {
+    "id": "skill-educational-product-design",
+    "kind": "node",
+    "x": -54,
+    "y": -15,
+    "z": -19
+  },
+  {
+    "id": "skill-simplicity-discipline",
+    "kind": "node",
+    "x": -28,
+    "y": 58,
+    "z": -20
+  },
+  {
+    "id": "skill-long-horizon-thinking",
+    "kind": "node",
+    "x": -25,
+    "y": -25,
+    "z": 9
+  }
+]
