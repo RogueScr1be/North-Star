@@ -1,0 +1,615 @@
+/**
+ * ASKTHEGRAPHPANEL.CSS
+ * Styling for Ask-the-Graph UI
+ * Phase 4.0: Neon-inspired, energetic design matching constellation canvas
+ */
+
+/* ============================================================================
+   PANEL LAYOUT
+   ============================================================================ */
+
+.ask-graph-trigger {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 900;
+  width: 320px;
+}
+
+.ask-graph-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 420px;
+  max-height: 75vh;
+  background: linear-gradient(135deg, rgba(15, 20, 30, 0.95) 0%, rgba(10, 15, 25, 0.98) 100%);
+  border: 1px solid rgba(0, 255, 200, 0.15);
+  border-radius: 12px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(0, 255, 200, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: blur(10px);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.ask-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0, 255, 200, 0.1);
+  background: linear-gradient(90deg, rgba(0, 255, 200, 0.03) 0%, rgba(255, 0, 200, 0.02) 100%);
+}
+
+.ask-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(0, 255, 200, 0.95);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(0, 255, 200, 0.3);
+}
+
+.ask-close-button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.ask-close-button:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 0, 200, 0.1);
+  text-shadow: 0 0 8px rgba(255, 0, 200, 0.5);
+}
+
+/* ============================================================================
+   INPUT
+   ============================================================================ */
+
+.ask-graph-input-wrapper,
+.ask-graph-input-wrapper-expanded {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(0, 255, 200, 0.08);
+  background: rgba(0, 255, 200, 0.02);
+}
+
+.ask-graph-input-compact,
+.ask-graph-input-expanded {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(0, 255, 200, 0.2);
+  border-radius: 6px;
+  padding: 9px 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  transition: all 0.25s;
+}
+
+.ask-graph-input-compact::placeholder,
+.ask-graph-input-expanded::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.ask-graph-input-compact:focus,
+.ask-graph-input-expanded:focus {
+  outline: none;
+  background: rgba(0, 255, 200, 0.08);
+  border-color: rgba(0, 255, 200, 0.6);
+  box-shadow:
+    0 0 12px rgba(0, 255, 200, 0.2),
+    inset 0 0 8px rgba(0, 255, 200, 0.05);
+}
+
+.ask-submit-button {
+  padding: 7px 14px;
+  background: linear-gradient(135deg, rgba(255, 0, 200, 0.8) 0%, rgba(255, 0, 150, 0.8) 100%);
+  border: 1px solid rgba(255, 0, 200, 0.4);
+  border-radius: 6px;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 10px rgba(255, 0, 200, 0.2);
+}
+
+.ask-submit-button:hover {
+  background: linear-gradient(135deg, rgba(255, 0, 200, 1) 0%, rgba(255, 0, 150, 1) 100%);
+  box-shadow:
+    0 0 16px rgba(255, 0, 200, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+/* ============================================================================
+   CONTENT AREA
+   ============================================================================ */
+
+.ask-answer-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Scrollbar styling */
+.ask-answer-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ask-answer-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ask-answer-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.ask-answer-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================================================
+   ANSWER DISPLAY
+   ============================================================================ */
+
+.ask-answer {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.ask-answer-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ask-confidence {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.ask-confidence-high {
+  background: rgba(76, 175, 80, 0.2);
+  color: rgba(76, 175, 80, 0.9);
+}
+
+.ask-confidence-medium {
+  background: rgba(255, 152, 0, 0.2);
+  color: rgba(255, 152, 0, 0.9);
+}
+
+.ask-confidence-low {
+  background: rgba(244, 67, 54, 0.2);
+  color: rgba(244, 67, 54, 0.9);
+}
+
+.ask-type {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.ask-type-success {
+  background: rgba(76, 175, 80, 0.15);
+  color: rgba(76, 175, 80, 0.8);
+}
+
+.ask-type-no_data {
+  background: rgba(158, 158, 158, 0.15);
+  color: rgba(158, 158, 158, 0.8);
+}
+
+.ask-type-insufficient_evidence {
+  background: rgba(255, 152, 0, 0.15);
+  color: rgba(255, 152, 0, 0.8);
+}
+
+.ask-type-unparseable {
+  background: rgba(244, 67, 54, 0.15);
+  color: rgba(244, 67, 54, 0.8);
+}
+
+.ask-answer-text {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ask-explanation {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+/* ============================================================================
+   EVIDENCE SECTION
+   ============================================================================ */
+
+.ask-evidence-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ask-evidence-section h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ask-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ask-evidence-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 8px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.ask-evidence-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.ask-evidence-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.ask-evidence-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ask-badge-project {
+  background: rgba(255, 96, 171, 0.2);
+  color: rgba(255, 96, 171, 0.8);
+}
+
+.ask-badge-decision {
+  background: rgba(26, 188, 156, 0.2);
+  color: rgba(26, 188, 156, 0.8);
+}
+
+.ask-badge-constraint {
+  background: rgba(155, 89, 182, 0.2);
+  color: rgba(155, 89, 182, 0.8);
+}
+
+.ask-badge-failure {
+  background: rgba(231, 76, 60, 0.2);
+  color: rgba(231, 76, 60, 0.8);
+}
+
+.ask-badge-metric {
+  background: rgba(241, 196, 15, 0.2);
+  color: rgba(241, 196, 15, 0.8);
+}
+
+.ask-badge-skill {
+  background: rgba(46, 204, 113, 0.2);
+  color: rgba(46, 204, 113, 0.8);
+}
+
+.ask-badge-outcome {
+  background: rgba(52, 152, 219, 0.2);
+  color: rgba(52, 152, 219, 0.8);
+}
+
+.ask-badge-experiment {
+  background: rgba(149, 165, 166, 0.2);
+  color: rgba(149, 165, 166, 0.8);
+}
+
+.ask-badge-unknown {
+  background: rgba(155, 89, 182, 0.15);
+  color: rgba(155, 89, 182, 0.7);
+}
+
+.ask-evidence-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ask-evidence-gravity {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  background: rgba(0, 255, 200, 0.1);
+  color: rgba(0, 255, 200, 0.7);
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ask-evidence-desc {
+  margin: 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ============================================================================
+   STATE MESSAGES
+   ============================================================================ */
+
+.ask-state {
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  text-align: center;
+  flex: 1;
+}
+
+.ask-loading {
+  gap: 12px;
+}
+
+.ask-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ask-error {
+  background: rgba(244, 67, 54, 0.08);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+.ask-error-text {
+  color: rgba(244, 67, 54, 0.8);
+}
+
+.ask-empty-hint {
+  margin: 0 0 8px 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.ask-example {
+  margin: 8px 0 4px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ask-examples {
+  margin: 0;
+  padding: 0 0 0 20px;
+  list-style: none;
+}
+
+.ask-examples li {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 3px 0;
+}
+
+.ask-no-answer,
+.ask-insufficient,
+.ask-unparseable {
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ask-no-answer {
+  background: rgba(158, 158, 158, 0.1);
+  border: 1px solid rgba(158, 158, 158, 0.2);
+  color: rgba(158, 158, 158, 0.8);
+}
+
+.ask-insufficient {
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.2);
+  color: rgba(255, 152, 0, 0.8);
+}
+
+.ask-unparseable {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+  color: rgba(244, 67, 54, 0.8);
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 600px) {
+  .ask-graph-trigger,
+  .ask-graph-panel {
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+
+  .ask-graph-panel {
+    bottom: 10px;
+  }
+}
+
+/* ============================================================================
+ * PHASE 5.6: FOLLOW-UP QUESTIONS + RECENT QUERIES
+ * ============================================================================ */
+
+.ask-followup-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ask-followup-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(0, 255, 200, 0.7);
+  font-weight: 600;
+}
+
+.ask-followup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ask-followup-button {
+  padding: 8px 10px;
+  background: rgba(0, 255, 200, 0.05);
+  border: 1px solid rgba(0, 255, 200, 0.2);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.ask-followup-button:hover {
+  background: rgba(0, 255, 200, 0.12);
+  border-color: rgba(0, 255, 200, 0.4);
+  color: rgba(255, 255, 255, 1);
+}
+
+.ask-followup-button:active {
+  background: rgba(0, 255, 200, 0.18);
+  border-color: rgba(0, 255, 200, 0.6);
+}
+
+/* Recent queries section (Phase 5.6) */
+.ask-recent-section {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ask-recent-label {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(0, 255, 200, 0.6);
+  font-weight: 600;
+}
+
+.ask-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ask-recent-button {
+  padding: 8px 10px;
+  background: rgba(0, 255, 200, 0.03);
+  border: 1px solid rgba(0, 255, 200, 0.15);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.ask-recent-button:hover {
+  background: rgba(0, 255, 200, 0.08);
+  border-color: rgba(0, 255, 200, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.ask-recent-button:active {
+  background: rgba(0, 255, 200, 0.12);
+  border-color: rgba(0, 255, 200, 0.4);
+}

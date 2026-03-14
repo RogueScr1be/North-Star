@@ -1,0 +1,660 @@
+/**
+ * CANVASSCENE.TSX
+ * React Three Fiber scene for constellation graph
+ * Phase 2.2: Read-only rendering with Points geometries
+ */
+
+import { useEffect, useMemo, useRef } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
+import * as THREE from 'three';
+import { RenderableGraph } from '../../lib/graph/graphTransforms';
+import { computeGraphBounds, computeCameraParams, CameraParams } from '../../lib/graph/graphBounds';
+import { GraphCamera } from './GraphCamera';
+import { GraphNode, GraphProject } from '../../lib/graph/graphTypes';
+import { HighlightState, getProjectHighlightColor, getEdgeHighlightColor, getEdgeHighlightOpacity, getNodeTypeColor, blendNodeColor } from '../../lib/graph/highlighting';
+import type { SemanticVisibility } from '../../lib/graph/graphSemantics';
+
+interface CanvasSceneProps {
+  graph: RenderableGraph;
+  onUnresolvedEdgesChange?: (count: number) => void;
+  onNodeClick?: (node: GraphNode) => void;
+  onProjectClick?: (project: GraphProject) => void;
+  onCanvasClick?: () => void; // Deselect on empty canvas click
+  highlightState?: HighlightState; // Phase 2.4: selection highlight state
+  semanticVisibility?: SemanticVisibility | null; // Phase 5.5: semantic filtering
+  selectedNodeId?: string | null; // Phase 5.3: for smart label visibility
+}
+
+/**
+ * NodesPoints: Render visible nodes as point cloud (Phase 5.5: semantic filtering)
+ */
+function NodesPoints({
+  graph,
+  highlightState,
+  semanticVisibility,
+}: {
+  graph: RenderableGraph;
+  highlightState?: HighlightState;
+  semanticVisibility?: SemanticVisibility | null;
+}) {
+  const pointsRef = useRef<THREE.Points>(null);
+
+  // Filter nodes by semantic visibility
+  const visibleNodes = useMemo(() => {
+    if (!semanticVisibility) return graph.nodes;
+    return graph.nodes.filter(node => semanticVisibility.visibleNodeIds.has(node.id));
+  }, [graph.nodes, semanticVisibility]);
+
+  // Create position array for visible nodes
+  const positions = useMemo(() => {
+    if (visibleNodes.length === 0) return new Float32Array();
+
+    const pos = new Float32Array(visibleNodes.length * 3);
+    for (let i = 0; i < visibleNodes.length; i++) {
+      const node = visibleNodes[i];
+      pos[i * 3] = node.position[0];
+      pos[i * 3 + 1] = node.position[1];
+      pos[i * 3 + 2] = node.position[2];
+    }
+    return pos;
+  }, [visibleNodes]);
+
+  // Create color array for visible nodes (type-colored, with highlight modulation)
+  const colors = useMemo(() => {
+    if (visibleNodes.length === 0) return new Float32Array();
+
+    const col = new Float32Array(visibleNodes.length * 3);
+    for (let i = 0; i < visibleNodes.length; i++) {
+      const node = visibleNodes[i];
+      const role = highlightState?.selectedRole.get(node.id) || 'default';
+      const typeColor = getNodeTypeColor(node.type);
+      const [r, g, b] = blendNodeColor(typeColor, role);
+      col[i * 3] = r;
+      col[i * 3 + 1] = g;
+      col[i * 3 + 2] = b;
+    }
+    return col;
+  }, [visibleNodes, highlightState]);
+
+  // Create size array for visible nodes (enhanced gravity scaling for visual dominance)
+  const sizes = useMemo(() => {
+    if (visibleNodes.length === 0) return new Float32Array();
+
+    const sz = new Float32Array(visibleNodes.length);
+    for (let i = 0; i < visibleNodes.length; i++) {
+      // Phase 5.3: 1.5 + gravity*8 gives wider range (1.5 to 9.5 vs 2 to 6)
+      sz[i] = 1.5 + visibleNodes[i].gravity_score * 8;
+    }
+    return sz;
+  }, [visibleNodes]);
+
+  if (visibleNodes.length === 0) return null;
+
+  return (
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" array={positions} count={visibleNodes.length} itemSize={3} />
+        <bufferAttribute attach="attributes-color" array={colors} count={visibleNodes.length} itemSize={3} />
+        <bufferAttribute attach="attributes-size" array={sizes} count={visibleNodes.length} itemSize={1} />
+      </bufferGeometry>
+      <pointsMaterial
+        size={1}
+        vertexColors
+        sizeAttenuation={true}
+      />
+    </points>
+  );
+}
+
+/**
+ * ProjectsPoints: Render visible projects as larger point cloud (Phase 5.5: semantic filtering)
+ * Phase 5.4: North Star focal treatment for highest-gravity project
+ */
+function ProjectsPoints({
+  graph,
+  highlightState,
+  semanticVisibility,
+}: {
+  graph: RenderableGraph;
+  highlightState?: HighlightState;
+  semanticVisibility?: SemanticVisibility | null;
+}) {
+  const pointsRef = useRef<THREE.Points>(null);
+
+  // Filter projects by semantic visibility
+  const visibleProjects = useMemo(() => {
+    if (!semanticVisibility) return graph.projects;
+    return graph.projects.filter(proj => semanticVisibility.visibleProjectIds.has(proj.id));
+  }, [graph.projects, semanticVisibility]);
+
+  // Find North Star project among visible projects (highest gravity = focal anchor)
+  const northStarId = useMemo(() => {
+    if (visibleProjects.length === 0) return null;
+    return visibleProjects.reduce((max, p) =>
+      p.gravity_score > (max?.gravity_score ?? 0) ? p : max
+    )?.id || null;
+  }, [visibleProjects]);
+
+  // Create position array for visible projects
+  const positions = useMemo(() => {
+    if (visibleProjects.length === 0) return new Float32Array();
+
+    const pos = new Float32Array(visibleProjects.length * 3);
+    for (let i = 0; i < visibleProjects.length; i++) {
+      const proj = visibleProjects[i];
+      pos[i * 3] = proj.position[0];
+      pos[i * 3 + 1] = proj.position[1];
+      pos[i * 3 + 2] = proj.position[2];
+    }
+    return pos;
+  }, [visibleProjects]);
+
+  // Create color array for visible projects (respecting highlight state and focal treatment)
+  const colors = useMemo(() => {
+    if (visibleProjects.length === 0) return new Float32Array();
+
+    const col = new Float32Array(visibleProjects.length * 3);
+    for (let i = 0; i < visibleProjects.length; i++) {
+      const proj = visibleProjects[i];
+      const role = highlightState?.selectedRole.get(proj.id) || 'default';
+      let [r, g, b] = getProjectHighlightColor(role);
+
+      // Phase 5.4: Enhance North Star (focal anchor) with brighter cyan tint
+      if (proj.id === northStarId && role === 'default') {
+        r = Math.min(1, r + 0.2); // Brighten red channel slightly
+        g = Math.min(1, g + 0.1); // Brighten green slightly
+        b = Math.min(1, b + 0.3); // Brighten blue more (cyan accent)
+      }
+
+      col[i * 3] = r;
+      col[i * 3 + 1] = g;
+      col[i * 3 + 2] = b;
+    }
+    return col;
+  }, [visibleProjects, highlightState, northStarId]);
+
+  // Create size array for visible projects (enhanced gravity scaling for anchor visibility)
+  const sizes = useMemo(() => {
+    if (visibleProjects.length === 0) return new Float32Array();
+
+    const sz = new Float32Array(visibleProjects.length);
+    for (let i = 0; i < visibleProjects.length; i++) {
+      // Phase 5.3: 5 + gravity*8 makes projects significantly more visually dominant
+      sz[i] = 5 + visibleProjects[i].gravity_score * 8;
+    }
+    return sz;
+  }, [visibleProjects]);
+
+  if (visibleProjects.length === 0) return null;
+
+  return (
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" array={positions} count={visibleProjects.length} itemSize={3} />
+        <bufferAttribute attach="attributes-color" array={colors} count={visibleProjects.length} itemSize={3} />
+        <bufferAttribute attach="attributes-size" array={sizes} count={visibleProjects.length} itemSize={1} />
+      </bufferGeometry>
+      <pointsMaterial
+        size={1}
+        vertexColors
+        sizeAttenuation={true}
+      />
+    </points>
+  );
+}
+
+/**
+ * StarField: Background depth with sparse stars (Phase 5.4)
+ * Creates subtle atmospheric depth without visual clutter
+ */
+function StarField() {
+  const positions = useMemo(() => {
+    const pos = new Float32Array(150 * 3); // 150 background stars
+    const rng = (seed: number) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    for (let i = 0; i < 150; i++) {
+      // Deterministic pseudorandom distribution across large space
+      pos[i * 3] = (rng(i * 73.1) - 0.5) * 200;
+      pos[i * 3 + 1] = (rng(i * 127.3) - 0.5) * 200;
+      pos[i * 3 + 2] = (rng(i * 197.7) - 0.5) * 100 - 80; // Mostly behind graph
+    }
+    return pos;
+  }, []);
+
+  const colors = useMemo(() => {
+    const col = new Float32Array(150 * 3);
+    const rng = (seed: number) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    for (let i = 0; i < 150; i++) {
+      // Slight blue bias to match space theme
+      const brightness = 0.4 + rng(i * 311) * 0.5;
+      col[i * 3] = brightness * 0.7; // R: slightly dimmed
+      col[i * 3 + 1] = brightness * 0.8; // G: slightly more
+      col[i * 3 + 2] = brightness; // B: full brightness (blue tint)
+    }
+    return col;
+  }, []);
+
+  const sizes = useMemo(() => {
+    const sz = new Float32Array(150);
+    const rng = (seed: number) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    for (let i = 0; i < 150; i++) {
+      sz[i] = 0.15 + rng(i * 451) * 0.2; // Stars: 0.15-0.35 size
+    }
+    return sz;
+  }, []);
+
+  return (
+    <points>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" array={positions} count={150} itemSize={3} />
+        <bufferAttribute attach="attributes-color" array={colors} count={150} itemSize={3} />
+        <bufferAttribute attach="attributes-size" array={sizes} count={150} itemSize={1} />
+      </bufferGeometry>
+      <pointsMaterial
+        size={1}
+        vertexColors
+        sizeAttenuation={true}
+        transparent
+        opacity={0.35}
+        depthWrite={false}
+      />
+    </points>
+  );
+}
+
+/**
+ * EdgesLineSegments: Render visible edges as line segments (Phase 5.5: semantic filtering)
+ * Connected edges: 0.8 opacity when selected, 0.6 normally
+ * Unconnected edges: 0.35 opacity when something selected, 0.6 normally
+ * Phase 5.4: Animated pulse on connected edges for depth feedback
+ */
+function EdgesLineSegments({
+  graph,
+  highlightState,
+  semanticVisibility,
+}: {
+  graph: RenderableGraph;
+  highlightState?: HighlightState;
+  semanticVisibility?: SemanticVisibility | null;
+}) {
+  const lineRef = useRef<THREE.LineSegments>(null);
+  const baseColorsRef = useRef<Float32Array | null>(null);
+  const pulseTimeRef = useRef(0);
+
+  // Filter edges by semantic visibility
+  const visibleEdges = useMemo(() => {
+    if (!semanticVisibility) return graph.edges;
+    return graph.edges.filter(edge => semanticVisibility.visibleEdgeIds.has(edge.id));
+  }, [graph.edges, semanticVisibility]);
+
+  // Create position array for visible edges
+  const positions = useMemo(() => {
+    if (visibleEdges.length === 0) return new Float32Array();
+
+    const pos = new Float32Array(visibleEdges.length * 6);
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const edge = visibleEdges[i];
+      pos[i * 6] = edge.source[0];
+      pos[i * 6 + 1] = edge.source[1];
+      pos[i * 6 + 2] = edge.source[2];
+      pos[i * 6 + 3] = edge.target[0];
+      pos[i * 6 + 4] = edge.target[1];
+      pos[i * 6 + 5] = edge.target[2];
+    }
+    return pos;
+  }, [visibleEdges]);
+
+  // Create base color array for visible edges (static base colors)
+  const colors = useMemo(() => {
+    if (visibleEdges.length === 0) return new Float32Array();
+
+    const hasSelection = highlightState?.selectedId ?? null;
+    const col = new Float32Array(visibleEdges.length * 8); // 2 vertices × 4 components (RGBA)
+    for (let i = 0; i < visibleEdges.length; i++) {
+      const edge = visibleEdges[i];
+      const isConnected = highlightState?.connectedEdgeIds.has(edge.id) ?? false;
+      const [r, g, b] = getEdgeHighlightColor(isConnected);
+      const opacity = getEdgeHighlightOpacity(isConnected, !!hasSelection);
+
+      // Both vertices get same color with opacity
+      col[i * 8] = r;
+      col[i * 8 + 1] = g;
+      col[i * 8 + 2] = b;
+      col[i * 8 + 3] = opacity;
+      col[i * 8 + 4] = r;
+      col[i * 8 + 5] = g;
+      col[i * 8 + 6] = b;
+      col[i * 8 + 7] = opacity;
+    }
+    baseColorsRef.current = col;
+    return col;
+  }, [visibleEdges, highlightState]);
+
+  // Animate connected edge pulse (Phase 5.4: subtle shimmer on active paths)
+  useEffect(() => {
+    const animate = () => {
+      if (!lineRef.current || !baseColorsRef.current || !highlightState?.connectedEdgeIds.size) {
+        pulseTimeRef.current = 0;
+        return;
+      }
+
+      pulseTimeRef.current = (pulseTimeRef.current + 0.02) % (Math.PI * 2);
+      const colorAttr = lineRef.current.geometry.attributes.color as THREE.BufferAttribute;
+      const newColors = new Float32Array(baseColorsRef.current);
+
+      // Pulse only connected edges (using visible edge indices)
+      for (let i = 0; i < visibleEdges.length; i++) {
+        const edge = visibleEdges[i];
+        if (highlightState.connectedEdgeIds.has(edge.id)) {
+          // Gentle pulse: 0.7 to 1.0 opacity modulation
+          const pulse = 0.85 + Math.sin(pulseTimeRef.current) * 0.15;
+          newColors[i * 8 + 3] *= pulse;
+          newColors[i * 8 + 7] *= pulse;
+        }
+      }
+
+      colorAttr.array = newColors;
+      colorAttr.needsUpdate = true;
+    };
+
+    const frameId = requestAnimationFrame(function update() {
+      animate();
+      frameId;
+      requestAnimationFrame(update);
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [visibleEdges, highlightState]);
+
+  if (visibleEdges.length === 0) return null;
+
+  return (
+    <lineSegments ref={lineRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" array={positions} count={visibleEdges.length * 2} itemSize={3} />
+        <bufferAttribute attach="attributes-color" array={colors} count={visibleEdges.length * 2} itemSize={4} />
+      </bufferGeometry>
+      <lineBasicMaterial vertexColors transparent />
+    </lineSegments>
+  );
+}
+
+/**
+ * ProjectLabels: Render text labels for projects only
+ */
+function ProjectLabels({ graph }: { graph: RenderableGraph }) {
+  return (
+    <>
+      {graph.projects.map((proj) => (
+        <Text
+          key={proj.id}
+          position={[proj.position[0], proj.position[1] - 1.5, proj.position[2]]}
+          fontSize={0.6}
+          color={0x333333}
+          maxWidth={2.5}
+          textAlign="center"
+          anchorX="center"
+          anchorY="top"
+        >
+          {proj.title}
+        </Text>
+      ))}
+    </>
+  );
+}
+
+/**
+ * NodeLabels: Render text labels for selected nodes only (Phase 5.3)
+ * Reduces visual clutter while keeping important nodes readable
+ */
+function NodeLabels({ graph, selectedNodeId }: { graph: RenderableGraph; selectedNodeId?: string | null }) {
+  // Only show label for selected node
+  const selectedNode = selectedNodeId ? graph.nodes.find((n) => n.id === selectedNodeId) : null;
+
+  if (!selectedNode) {
+    return null;
+  }
+
+  return (
+    <Text
+      key={`label-${selectedNode.id}`}
+      position={[selectedNode.position[0], selectedNode.position[1] - 1.0, selectedNode.position[2]]}
+      fontSize={0.5}
+      color={0xcccccc}
+      maxWidth={2.0}
+      textAlign="center"
+      anchorX="center"
+      anchorY="top"
+    >
+      {selectedNode.title}
+    </Text>
+  );
+}
+
+/**
+ * PickableNodes: Invisible mesh layer for visible node click detection (Phase 5.5: semantic filtering)
+ * Phase 5.2: Increased hit areas by 2.5x for reliable interaction
+ * Provides cursor feedback on hover
+ */
+function PickableNodes({
+  graph,
+  onNodeClick,
+  semanticVisibility,
+}: {
+  graph: RenderableGraph;
+  onNodeClick?: (node: GraphNode) => void;
+  semanticVisibility?: SemanticVisibility | null;
+}) {
+  // Filter nodes by semantic visibility
+  const visibleNodes = useMemo(() => {
+    if (!semanticVisibility) return graph.nodes;
+    return graph.nodes.filter(node => semanticVisibility.visibleNodeIds.has(node.id));
+  }, [graph.nodes, semanticVisibility]);
+
+  return (
+    <>
+      {visibleNodes.map((node) => (
+        <mesh
+          key={`picker-node-${node.id}`}
+          position={[node.position[0], node.position[1], node.position[2]]}
+          onPointerEnter={() => {
+            document.body.style.cursor = 'pointer';
+          }}
+          onPointerLeave={() => {
+            document.body.style.cursor = 'auto';
+          }}
+          onPointerUp={(e) => {
+            e.stopPropagation();
+            onNodeClick?.(node);
+          }}
+        >
+          {/* Phase 5.2: Increased from 1.0 + gravity*2 to (2.5 + gravity*5) for forgiving hit areas */}
+          <sphereGeometry args={[2.5 + node.gravity_score * 5, 8, 8]} />
+          <meshBasicMaterial colorWrite={false} depthTest={false} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+/**
+ * PickableProjects: Invisible mesh layer for visible project click detection (Phase 5.5: semantic filtering)
+ * Phase 5.2: Increased hit areas by 2.5x for reliable interaction
+ * Provides cursor feedback on hover
+ */
+function PickableProjects({
+  graph,
+  onProjectClick,
+  semanticVisibility,
+}: {
+  graph: RenderableGraph;
+  onProjectClick?: (project: GraphProject) => void;
+  semanticVisibility?: SemanticVisibility | null;
+}) {
+  // Filter projects by semantic visibility
+  const visibleProjects = useMemo(() => {
+    if (!semanticVisibility) return graph.projects;
+    return graph.projects.filter(proj => semanticVisibility.visibleProjectIds.has(proj.id));
+  }, [graph.projects, semanticVisibility]);
+
+  return (
+    <>
+      {visibleProjects.map((proj) => (
+        <mesh
+          key={`picker-project-${proj.id}`}
+          position={[proj.position[0], proj.position[1], proj.position[2]]}
+          onPointerEnter={() => {
+            document.body.style.cursor = 'pointer';
+          }}
+          onPointerLeave={() => {
+            document.body.style.cursor = 'auto';
+          }}
+          onPointerUp={(e) => {
+            e.stopPropagation();
+            onProjectClick?.(proj);
+          }}
+        >
+          {/* Phase 5.2: Increased from 1.5 + gravity*3 to (3.75 + gravity*7.5) for forgiving hit areas */}
+          <sphereGeometry args={[3.75 + proj.gravity_score * 7.5, 8, 8]} />
+          <meshBasicMaterial colorWrite={false} depthTest={false} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+
+/**
+ * SceneContent: Inner scene with all graph geometry
+ */
+function SceneContent({
+  graph,
+  cameraParams,
+  onUnresolvedEdgesChange,
+  onNodeClick,
+  onProjectClick,
+  highlightState,
+  semanticVisibility,
+  selectedNodeId,
+}: {
+  graph: RenderableGraph;
+  cameraParams: CameraParams;
+  onUnresolvedEdgesChange?: (count: number) => void;
+  onNodeClick?: (node: GraphNode) => void;
+  onProjectClick?: (project: GraphProject) => void;
+  highlightState?: HighlightState;
+  semanticVisibility?: SemanticVisibility | null;
+  selectedNodeId?: string | null;
+}) {
+  useEffect(() => {
+    onUnresolvedEdgesChange?.(graph.unresolved_edges.length);
+
+    if (typeof window !== 'undefined' && (window as any).__DEV__) {
+      if (graph.unresolved_edges.length > 0) {
+        console.warn(
+          `[CanvasScene] ${graph.unresolved_edges.length} unresolved edges:`,
+          graph.unresolved_edges
+        );
+      } else {
+        console.log(`[CanvasScene] All ${graph.edges.length} edges resolved`);
+      }
+    }
+  }, [graph, onUnresolvedEdgesChange]);
+
+  return (
+    <>
+      {/* Camera */}
+      <GraphCamera params={cameraParams} />
+
+      {/* Lighting */}
+      <ambientLight intensity={0.8} />
+      <directionalLight position={[10, 10, 10]} intensity={0.5} />
+
+      {/* Phase 5.4: Atmospheric depth and fog */}
+      <fog attach="fog" args={['#000000', 20, 150]} />
+      <StarField />
+
+      {/* Geometry */}
+      <EdgesLineSegments graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} />
+      <NodesPoints graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} />
+      <ProjectsPoints graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} />
+
+      {/* Labels */}
+      <ProjectLabels graph={graph} />
+      <NodeLabels graph={graph} selectedNodeId={selectedNodeId} />
+
+      {/* Interactive picking layer */}
+      <PickableNodes graph={graph} onNodeClick={onNodeClick} semanticVisibility={semanticVisibility} />
+      <PickableProjects graph={graph} onProjectClick={onProjectClick} semanticVisibility={semanticVisibility} />
+
+      {/* Canvas background for click detection */}
+      <mesh position={[0, 0, -10]} scale={[10000, 10000, 1]} onPointerUp={(e) => e.stopPropagation()}>
+        <planeGeometry />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+    </>
+  );
+}
+
+/**
+ * CanvasScene
+ * Main canvas component with static framing and background for deselection
+ */
+export function CanvasScene({
+  graph,
+  onUnresolvedEdgesChange,
+  onNodeClick,
+  onProjectClick,
+  onCanvasClick,
+  highlightState,
+  semanticVisibility,
+  selectedNodeId,
+}: CanvasSceneProps) {
+  // Compute bounds and camera parameters once from graph
+  const { cameraParams } = useMemo(() => {
+    const b = computeGraphBounds(graph);
+    const aspect = typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 1.6;
+    const cp = computeCameraParams(b, aspect, 0.1);
+    return { bounds: b, cameraParams: cp };
+  }, [graph]);
+
+
+  return (
+    <Canvas
+      orthographic
+      frameloop="always"
+      style={{ width: '100%', height: '100%' }}
+    >
+      <SceneContent
+        graph={graph}
+        cameraParams={cameraParams}
+        onUnresolvedEdgesChange={onUnresolvedEdgesChange}
+        onNodeClick={onNodeClick}
+        onProjectClick={onProjectClick}
+        highlightState={highlightState}
+        semanticVisibility={semanticVisibility}
+        selectedNodeId={selectedNodeId}
+      />
+
+      {/* Background mesh for canvas deselect clicks */}
+      {onCanvasClick && (
+        <mesh position={[0, 0, -100]} scale={[10000, 10000, 1]} onPointerUp={onCanvasClick}>
+          <planeGeometry />
+          <meshBasicMaterial transparent opacity={0} />
+        </mesh>
+      )}
+    </Canvas>
+  );
+}

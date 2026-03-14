@@ -1,0 +1,163 @@
+/**
+ * CONSTELLATIONCANVAS.CSS
+ * Styling for constellation canvas page
+ * Phase 5.0: Dark immersive constellation experience
+ */
+
+.constellation-container {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  /* Phase 5.4: Enhanced space atmosphere with deeper blue bias */
+  background: linear-gradient(135deg, #000000 0%, #050508 25%, #0a0a15 50%, #000510 75%, #000005 100%);
+  overflow: hidden;
+}
+
+/* Loading/Error/Empty states */
+.constellation-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: inherit;
+}
+
+.state-content {
+  text-align: center;
+  max-width: 500px;
+  padding: 2rem;
+  background: rgba(15, 20, 30, 0.9);
+  border: 1px solid rgba(0, 255, 200, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 255, 200, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.state-content h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  color: rgba(0, 255, 200, 0.95);
+  text-shadow: 0 0 10px rgba(0, 255, 200, 0.2);
+}
+
+.state-content p {
+  margin: 0 0 1rem 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+}
+
+/* Spinner animation */
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin: 2rem auto;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid rgba(0, 255, 200, 0.8);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error state styling */
+.state-content.error {
+  background: rgba(244, 67, 54, 0.08);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.state-content.error h2 {
+  color: rgba(244, 67, 54, 0.9);
+}
+
+.error-message {
+  font-family: monospace;
+  font-size: 0.85rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1rem;
+  border-radius: 4px;
+  border-left: 3px solid rgba(244, 67, 54, 0.8);
+  text-align: left;
+  color: rgba(244, 67, 54, 0.9);
+  margin: 1rem 0 !important;
+  overflow-x: auto;
+}
+
+.error-stack {
+  display: none;
+  font-size: 0.7rem;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  border-radius: 4px;
+  text-align: left;
+  max-height: 200px;
+  overflow: auto;
+  margin: 1rem 0;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.retry-button {
+  background: linear-gradient(135deg, rgba(0, 255, 200, 0.8) 0%, rgba(0, 255, 200, 0.6) 100%);
+  color: #0a0e27;
+  border: 1px solid rgba(0, 255, 200, 0.4);
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0, 255, 200, 0.2);
+}
+
+.retry-button:hover {
+  background: linear-gradient(135deg, rgba(0, 255, 200, 1) 0%, rgba(0, 255, 200, 0.8) 100%);
+  box-shadow: 0 0 16px rgba(0, 255, 200, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Development diagnostics overlay */
+.constellation-diagnostics {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.diagnostics-panel {
+  background: rgba(15, 20, 30, 0.9);
+  border: 1px solid rgba(0, 255, 200, 0.2);
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 0.8rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 255, 200, 0.08);
+  font-family: monospace;
+  backdrop-filter: blur(8px);
+}
+
+.diagnostics-panel h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: rgba(0, 255, 200, 0.9);
+}
+
+.diagnostics-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.diagnostics-panel li {
+  margin: 4px 0;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Canvas sizing */
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

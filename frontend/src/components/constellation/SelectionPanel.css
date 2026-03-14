@@ -1,0 +1,277 @@
+/**
+ * SELECTIONPANEL.CSS
+ * Styles for right-side detail panel
+ * Phase 5.0: Dark theme with neon accents
+ */
+
+.selection-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 100vh;
+  width: 360px;
+  background: rgba(10, 14, 27, 0.98);
+  border-left: 1px solid rgba(0, 255, 200, 0.15);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5), -2px 0 20px rgba(0, 255, 200, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  animation: slideInRight 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  backdrop-filter: blur(10px);
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(360px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px;
+  border-bottom: 1px solid rgba(0, 255, 200, 0.1);
+  background: linear-gradient(90deg, rgba(0, 255, 200, 0.03) 0%, rgba(255, 0, 200, 0.02) 100%);
+}
+
+.selection-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.selection-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  flex: 1;
+  word-break: break-word;
+  padding-right: 10px;
+}
+
+.selection-pin {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.selection-pin:hover {
+  background-color: rgba(255, 0, 200, 0.1);
+  color: rgba(255, 0, 200, 0.8);
+}
+
+.selection-pin:active {
+  background-color: rgba(255, 0, 200, 0.15);
+}
+
+.selection-pin.pinned {
+  color: rgba(255, 0, 200, 0.9);
+}
+
+.selection-pin.pinned:hover {
+  background-color: rgba(255, 0, 200, 0.15);
+  color: rgba(255, 0, 200, 1);
+}
+
+.selection-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.selection-close:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.selection-close:active {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.selection-badge {
+  padding: 0 20px;
+  margin-top: 12px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-project {
+  background-color: rgba(255, 96, 171, 0.2);
+  color: rgba(255, 96, 171, 0.9);
+  border: 1px solid rgba(255, 96, 171, 0.3);
+}
+
+.badge-decision {
+  background-color: rgba(26, 188, 156, 0.2);
+  color: rgba(26, 188, 156, 0.9);
+  border: 1px solid rgba(26, 188, 156, 0.3);
+}
+
+.badge-constraint {
+  background-color: rgba(155, 89, 182, 0.2);
+  color: rgba(155, 89, 182, 0.9);
+  border: 1px solid rgba(155, 89, 182, 0.3);
+}
+
+.badge-failure {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: rgba(231, 76, 60, 0.9);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.badge-metric {
+  background-color: rgba(241, 196, 15, 0.2);
+  color: rgba(241, 196, 15, 0.9);
+  border: 1px solid rgba(241, 196, 15, 0.3);
+}
+
+.badge-skill {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: rgba(46, 204, 113, 0.9);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.badge-outcome {
+  background-color: rgba(52, 152, 219, 0.2);
+  color: rgba(52, 152, 219, 0.9);
+  border: 1px solid rgba(52, 152, 219, 0.3);
+}
+
+.badge-experiment {
+  background-color: rgba(149, 165, 166, 0.2);
+  color: rgba(149, 165, 166, 0.9);
+  border: 1px solid rgba(149, 165, 166, 0.3);
+}
+
+.selection-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.selection-field {
+  margin-bottom: 20px;
+}
+
+.selection-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.selection-value {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.selection-empty {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+}
+
+.selection-id {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  background-color: rgba(0, 255, 200, 0.05);
+  border: 1px solid rgba(0, 255, 200, 0.15);
+  padding: 6px 8px;
+  border-radius: 3px;
+  word-break: break-all;
+  color: rgba(0, 255, 200, 0.8);
+}
+
+.selection-tags {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.selection-tag {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.gravity-score {
+  font-weight: 600;
+  color: rgba(0, 255, 200, 0.9);
+}
+
+/* Scrollbar styling */
+.selection-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.selection-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.selection-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 200, 0.2);
+  border-radius: 3px;
+}
+
+.selection-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 200, 0.3);
+}
+
+/* Responsive: collapse panel on very small screens */
+@media (max-width: 768px) {
+  .selection-panel {
+    width: 100%;
+    max-width: 360px;
+  }
+}
