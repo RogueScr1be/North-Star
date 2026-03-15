@@ -1,5 +1,6 @@
 {
   "buildCommand": "bash build.sh",
+  "installCommand": "npm ci",
   "outputDirectory": "frontend/dist",
   "env": {
     "VITE_LAYOUT_ENGINE_ENABLED": "true"
