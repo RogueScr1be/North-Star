@@ -1,6 +1,5 @@
 {
-  "buildCommand": "npm run build --workspace=frontend",
-  "installCommand": "npm ci && npm ci --workspace=frontend",
+  "buildCommand": "bash build.sh",
   "outputDirectory": "frontend/dist",
   "env": {
     "VITE_LAYOUT_ENGINE_ENABLED": "true"
