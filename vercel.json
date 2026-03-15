@@ -1,4 +1,5 @@
 {
+  "installCommand": "rm -f package-lock.json && npm install",
   "buildCommand": "bash build.sh",
   "outputDirectory": "frontend/dist",
   "env": {
