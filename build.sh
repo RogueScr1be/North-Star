@@ -8,6 +8,8 @@ echo "Installing dependencies without lock file (will regenerate platform-specif
 npm install --verbose
 
 echo "Building frontend..."
+export VITE_API_BASE_URL="https://north-star-backend-production-83d2.up.railway.app/api"
+export VITE_LAYOUT_ENGINE_ENABLED="true"
 npm run build --workspace=frontend
 
 echo "Build complete!"
