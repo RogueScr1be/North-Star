@@ -12,7 +12,7 @@ import {
   ErrorResponse,
 } from './types';
 
-const API_BASE = (typeof window !== 'undefined' && (window as any).__ENV__?.REACT_APP_API_BASE) || 'http://localhost:3001/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
 // ============================================================================
 // ERROR HANDLING
