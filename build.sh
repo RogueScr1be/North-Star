@@ -10,6 +10,7 @@ npm install --verbose
 echo "Building frontend..."
 export VITE_API_BASE_URL="https://north-star-backend-production-83d2.up.railway.app/api"
 export VITE_LAYOUT_ENGINE_ENABLED="true"
+export VITE_POSTHOG_KEY="phc_8R0iKI16ud8hTCY6O48a6raT7OUW8M2jIR91HCLvZOW"
 # VITE_POSTHOG_KEY must be set in Vercel Environment Variables (Settings → Environment Variables).
 # It is intentionally NOT hardcoded here — it stays out of version control.
 # Vercel injects it into the build environment automatically when set in the dashboard.
