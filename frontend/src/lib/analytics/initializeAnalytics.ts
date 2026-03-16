@@ -32,7 +32,17 @@ export function initializeAnalytics(): {
       const posthog = (window as any).posthog;
 
       if (posthog) {
-        // PostHog SDK loaded: use PostHog logger
+        // PostHog SDK loaded (or stub present): initialize with project key if not already done
+        if (typeof posthog.init === 'function' && !posthog.__loaded) {
+          const host = import.meta.env.VITE_POSTHOG_HOST || 'https://us.posthog.com';
+          posthog.init(apiKey, {
+            api_host: host,
+            capture_pageview: false, // Manual control — we track our own events
+            autocapture: false,      // No auto-clicks; only our custom events
+            persistence: 'memory',   // No localStorage tracking; privacy-first
+          });
+        }
+        // Create logger and activate remote analytics
         const logger = createPostHogLogger();
         if (logger) {
           setSearchAnalyticsLogger(logger);
