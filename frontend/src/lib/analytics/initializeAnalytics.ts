@@ -28,37 +28,17 @@ export function initializeAnalytics(): {
   if (apiKey) {
     // PostHog key available: try to load PostHog and set up remote logger
     try {
-      // Check if PostHog SDK is already loaded (via script tag in index.html)
-      const posthog = (window as any).posthog;
-
-      if (posthog) {
-        // PostHog SDK loaded (or stub present): initialize with project key if not already done
-        if (typeof posthog.init === 'function' && !posthog.__loaded) {
-          const host = import.meta.env.VITE_POSTHOG_HOST || 'https://us.posthog.com';
-          posthog.init(apiKey, {
-            api_host: host,
-            capture_pageview: false, // Manual control — we track our own events
-            autocapture: false,      // No auto-clicks; only our custom events
-            persistence: 'memory',   // No localStorage tracking; privacy-first
-          });
-        }
-        // Create logger and activate remote analytics
-        const logger = createPostHogLogger();
-        if (logger) {
-          setSearchAnalyticsLogger(logger);
-          console.debug('[Analytics] PostHog logger initialized (remote)');
-          return {
-            isRemoteEnabled: true,
-            loggerType: 'posthog',
-          };
-        }
-      } else {
-        // PostHog SDK not loaded: warn and fall back to console
-        console.warn(
-          '[Analytics] PostHog API key provided but SDK not loaded. ' +
-          'Make sure to include PostHog JS SDK in index.html. ' +
-          'Falling back to console logging.'
-        );
+      // PostHog SDK initialized via snippet in index.html before React mounts.
+      // The snippet calls posthog.init(key) and queues events until array.js loads.
+      // Here we only need to create the logger wrapper — init timing is handled.
+      const logger = createPostHogLogger();
+      if (logger) {
+        setSearchAnalyticsLogger(logger);
+        console.debug('[Analytics] PostHog logger initialized (remote)');
+        return {
+          isRemoteEnabled: true,
+          loggerType: 'posthog',
+        };
       }
     } catch (error) {
       console.error('[Analytics] Error initializing PostHog:', error);
