@@ -21,14 +21,16 @@
         // PostHog stub — queues all calls until array.js finishes loading from CDN
         !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]);t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}var d=e;void 0!==a?d=e[a]=[]:a="posthog";d.people=d.people||[];d.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e};d.people.toString=function(){return d.toString(1)+".people (stub)"};o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" ");for(p=0;p<o.length;p++)g(d,o[p]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
         posthog.init(key, {
-          api_host: 'https://us.posthog.com',
+          api_host: 'https://us.i.posthog.com',
+          ui_host: 'https://us.posthog.com',
           capture_pageview: false,
           autocapture: false,
           persistence: 'memory'
         });
       })();
     </script>
-    <script defer src="https://us.posthog.com/array.js"></script>
+    <!-- Correct PostHog CDN: us-assets.i.posthog.com (us.posthog.com/array.js → 302 login redirect) -->
+    <script defer src="https://us-assets.i.posthog.com/static/array.js"></script>
   </head>
   <body>
     <div id="root"></div>
