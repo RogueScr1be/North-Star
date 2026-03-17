@@ -52,7 +52,8 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Phase 6.0: Layout engine mode (Curated API vs Dynamic D3)
   // Phase 6.2B: Force 'api' mode if D3 is disabled via env var
-  const [layoutEngine, setLayoutEngine] = useState<'api' | 'd3'>(isD3Enabled ? 'api' : 'api');
+  // Phase 6.2.5: Default to 'd3' when enabled, 'api' as fallback
+  const [layoutEngine, setLayoutEngine] = useState<'api' | 'd3'>(isD3Enabled ? 'd3' : 'api');
 
   // Transform data to renderable format
   const renderableGraph = React.useMemo(() => {
@@ -178,8 +179,17 @@ export const ConstellationCanvas: React.FC = () => {
     }
   }, [d3PositionsResult?.positions, d3PositionsResult?.error, layoutEngine, semanticVisibility?.visibleNodeIds.size, semanticVisibility?.visibleProjectIds.size]);
 
+  // Track if this is initial mount (restoration from URL) vs user-driven selection
+  const isInitialMount = useRef(true);
+
   // When a node is selected on canvas, optionally auto-enable subgraph mode
+  // BUT: Only do this for user-driven selections, not URL restoration on mount
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return; // Skip auto-subgraph on initial URL restoration
+    }
+
     if (selectedItem?.type === 'node') {
       // Auto-set subgraph mode when selecting a node (1 hop default)
       setSubgraphNode(selectedItem.data.id, 1);
