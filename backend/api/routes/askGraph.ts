@@ -1,16 +1,16 @@
 /**
  * ASK_GRAPH.TS
- * Natural language query endpoint with Claude API synthesis
- * Phase 7.1: Claude API integration for improved answers with streaming
+ * Natural language query endpoint with OpenAI API synthesis
+ * Phase 7.1: OpenAI API integration with model routing (gpt-5.4-mini / gpt-5.4)
  */
 
 import { Router, Request, Response } from 'express';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { supabase } from '../config';
 
 const router = Router();
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 // ============================================================================
@@ -115,8 +115,8 @@ async function fetchGraphData(): Promise<GraphData> {
 }
 
 /**
- * Extract cited entities from Claude response using pattern matching
- * Claude may mention entities by name; we match mentioned titles to entities
+ * Extract cited entities from OpenAI response using pattern matching
+ * Response may mention entities by name; we match mentioned titles to entities
  */
 function extractCitedEntities(
   answer: string,
@@ -146,7 +146,7 @@ function extractCitedEntities(
 }
 
 /**
- * Format graph data as context for Claude
+ * Format graph data as context for OpenAI model
  * Includes summaries of nodes, projects, and relationships
  */
 function formatGraphContext(graph: GraphData): string {
@@ -196,7 +196,7 @@ ${relationshipsSummary}
 
 /**
  * Ask a natural language question about the knowledge graph
- * Claude synthesizes an answer based on graph context
+ * OpenAI model synthesizes an answer based on graph context
  */
 router.post('/', async (req: Request, res: Response) => {
   try {
@@ -209,12 +209,16 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       return res.status(500).json({
         success: false,
-        error: 'ANTHROPIC_API_KEY is not set',
+        error: 'OPENAI_API_KEY is not set',
       });
     }
+
+    // Model routing: escalate complex queries to gpt-5.4, use gpt-5.4-mini by default
+    const shouldEscalate = /between|relationship|all projects|across|connect|relate|integration|dependency|flow|architecture|holistic|overall|should|recommend|strategy|best|next|priority|roadmap|approach|plan|synthesis|summary|overview/i.test(question);
+    const model = shouldEscalate ? 'gpt-5.4' : 'gpt-5.4-mini';
 
     // Fetch graph data if not provided
     const graph = clientGraph || (await fetchGraphData());
@@ -223,13 +227,17 @@ router.post('/', async (req: Request, res: Response) => {
     const graphContext = formatGraphContext(graph);
 
     console.log(`[AskGraph] Question: "${question}"`);
-    console.log(`[AskGraph] Model: Claude 3.5 Sonnet`);
+    console.log(`[AskGraph] Model: ${model} (escalated: ${shouldEscalate})`);
 
-    // Call Claude API with graph context + question
-    const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+    // Call OpenAI API with graph context + question
+    const response = await openai.chat.completions.create({
+      model: model,
       max_tokens: 1024,
       messages: [
+        {
+          role: 'system',
+          content: `You are an expert analyst of knowledge graphs. You answer questions about a specific knowledge graph provided below. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
+        },
         {
           role: 'user',
           content: `${graphContext}
@@ -239,19 +247,15 @@ User Question: ${question}
 Please answer the question based on the knowledge graph provided above. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
         },
       ],
-      system: `You are an expert analyst of knowledge graphs. You answer questions about a specific knowledge graph provided below. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
     });
 
-    // Extract answer text from API response
-    const answerText = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as any).text)
-      .join('\n');
+    // Extract answer text from OpenAI API response
+    const answerText = response.choices[0]?.message?.content?.trim();
 
     if (!answerText) {
       return res.status(500).json({
         success: false,
-        error: 'No response content from Claude',
+        error: 'No response content from OpenAI',
       });
     }
 
