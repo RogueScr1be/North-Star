@@ -9,9 +9,6 @@ import OpenAI from 'openai';
 import { supabase } from '../config';
 
 const router = Router();
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 // ============================================================================
 // TYPES
@@ -215,6 +212,11 @@ router.post('/', async (req: Request, res: Response) => {
         error: 'OPENAI_API_KEY is not set',
       });
     }
+
+    // Lazy-initialize OpenAI client (required because SDK throws at init time if key missing)
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     // Model routing: escalate complex queries to gpt-5.4, use gpt-5.4-mini by default
     const shouldEscalate = /between|relationship|all projects|across|connect|relate|integration|dependency|flow|architecture|holistic|overall|should|recommend|strategy|best|next|priority|roadmap|approach|plan|synthesis|summary|overview/i.test(question);
