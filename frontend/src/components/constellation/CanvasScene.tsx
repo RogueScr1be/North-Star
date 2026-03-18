@@ -191,8 +191,13 @@ function ProjectsPoints({
 
   // Filter projects by semantic visibility
   const visibleProjects = useMemo(() => {
-    if (!semanticVisibility) return graph.projects;
-    return graph.projects.filter(proj => semanticVisibility.visibleProjectIds.has(proj.id));
+    if (!semanticVisibility) {
+      console.log('[ProjectsPoints] No semantic visibility - showing all', graph.projects.length, 'projects:', graph.projects.map(p => p.id));
+      return graph.projects;
+    }
+    const filtered = graph.projects.filter(proj => semanticVisibility.visibleProjectIds.has(proj.id));
+    console.log('[ProjectsPoints] Filtered projects: input=', graph.projects.length, 'visibleIds.size=', semanticVisibility.visibleProjectIds.size, 'output=', filtered.length, 'ids=', filtered.map(p => p.id), 'visibleIds=', Array.from(semanticVisibility.visibleProjectIds));
+    return filtered;
   }, [graph.projects, semanticVisibility]);
 
   // Create position array for visible projects (Phase 6.0: branch by layoutEngine)
@@ -601,8 +606,13 @@ function PickableProjects({
 }) {
   // Filter projects by semantic visibility
   const visibleProjects = useMemo(() => {
-    if (!semanticVisibility) return graph.projects;
-    return graph.projects.filter(proj => semanticVisibility.visibleProjectIds.has(proj.id));
+    if (!semanticVisibility) {
+      console.log('[PickableProjects] No semantic visibility - showing all', graph.projects.length, 'projects:', graph.projects.map(p => p.id));
+      return graph.projects;
+    }
+    const filtered = graph.projects.filter(proj => semanticVisibility.visibleProjectIds.has(proj.id));
+    console.log('[PickableProjects] Filtered projects: input=', graph.projects.length, 'visibleIds.size=', semanticVisibility.visibleProjectIds.size, 'output=', filtered.length, 'ids=', filtered.map(p => p.id));
+    return filtered;
   }, [graph.projects, semanticVisibility]);
 
   // Phase 6.2A: Compute position with same branching logic as visible projects (ProjectsPoints)
