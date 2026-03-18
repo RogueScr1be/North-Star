@@ -1,0 +1,521 @@
+openapi: 3.0.3
+info:
+  title: North Star MFP Graph API
+  description: Backend API for single-founder capability constellation rendering
+  version: 0.1.0
+  contact:
+    name: Prentiss
+    url: https://northstar.dev
+
+servers:
+  - url: https://api.northstar.dev
+    description: Production
+  - url: http://localhost:3000/api
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+paths:
+  /graph/profile/{id}:
+    get:
+      summary: Get founder profile with full graph payload
+      description: |
+        Returns a complete founder profile constellation including all nodes, edges, and layout coordinates.
+        Suitable for initial page load and full-graph rendering.
+      operationId: getProfileGraph
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Founder profile ID (slug or UUID)
+          example: prentiss-frontier-operator
+      responses:
+        '200':
+          description: Profile graph payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphPayload'
+              example:
+                profile:
+                  id: prentiss-frontier-operator
+                  name: Prentiss
+                  title: Frontier Operator
+                  headline: Building AI-native operating systems and coordination layers
+                nodes:
+                  - id: proj-getit
+                    type: project
+                    title: GetIT
+                    gravity_score: 0.9
+                    x: 150
+                    y: 200
+                    z: 0
+                    description: Video-first transactional local services marketplace
+                  - id: node-getit-constraint-trust
+                    type: constraint
+                    title: Marketplace Trust & Recommendation Transparency
+                    gravity_score: 0.85
+                    x: 200
+                    y: 250
+                    z: 0
+                edges:
+                  - id: edge-getit-constraint-decision
+                    source_node_id: node-getit-constraint-trust
+                    target_node_id: node-getit-decision-invite-only
+                    relationship_type: shapes
+                    weight: 0.9
+        '404':
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Graph
+
+  /graph/node/{id}:
+    get:
+      summary: Get single node with related context
+      description: |
+        Returns a single node with inbound/outbound edges, related nodes, and evidence.
+        Used for Node Expansion Panel detail views.
+      operationId: getNodeDetail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Node ID
+          example: node-getit-constraint-trust
+      responses:
+        '200':
+          description: Node detail with context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeDetail'
+              example:
+                node:
+                  id: node-getit-constraint-trust
+                  type: constraint
+                  title: Marketplace Trust & Recommendation Transparency
+                  description: Marketplace trust and recommendation transparency matter...
+                  gravity_score: 0.85
+                  metadata:
+                    status: active
+                    tags: ["marketplace", "trust", "ethics", "transparency"]
+                    evidence:
+                      - source: Prentiss North Star Projects
+                        detail: Marketplace trust and recommendation transparency matter...
+                inbound_edges:
+                  - id: edge-getit-constraint-decision
+                    source_node_id: proj-getit
+                    relationship_type: contains
+                outbound_edges:
+                  - id: edge-getit-constraint-decision
+                    target_node_id: node-getit-decision-invite-only
+                    relationship_type: shapes
+        '404':
+          description: Node not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Graph
+
+  /graph/query:
+    post:
+      summary: Query graph with keyword and tag matching
+      description: |
+        Narrow retrieval using keyword and tag matching.
+        Returns matching nodes + highlighting rules + explanation.
+        NO semantic search, NO LLM synthesis.
+      operationId: queryGraph
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+            example:
+              profile_id: prentiss-frontier-operator
+              query: "marketplace trust"
+              tags: ["marketplace", "trust"]
+              limit: 20
+      responses:
+        '200':
+          description: Query results with highlighting rules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+              example:
+                matched_nodes:
+                  - id: node-getit-constraint-trust
+                    type: constraint
+                    title: Marketplace Trust & Recommendation Transparency
+                    gravity_score: 0.85
+                    match_reason: "keyword: trust, tag: marketplace"
+                  - id: node-getit-decision-invite-only
+                    type: decision
+                    title: Invite-Only Controlled Launch Strategy
+                    gravity_score: 0.9
+                    match_reason: "inbound edge from matched constraint"
+                highlight_rules:
+                  node_ids:
+                    - node-getit-constraint-trust
+                    - node-getit-decision-invite-only
+                  edge_ids:
+                    - edge-getit-constraint-decision
+                explanation: "Found 2 nodes matching 'marketplace trust'. Constraint shapes decision. Both edges highlighted."
+        '400':
+          description: Invalid query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Query
+
+  /graph/layout/recompute:
+    post:
+      summary: Recompute force-directed layout (admin only)
+      description: |
+        Regenerate all node positions via force-directed algorithm.
+        Requires admin bearer token.
+        Expensive operation. Use sparingly after content changes.
+      operationId: recomputeLayout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecomputeRequest'
+            example:
+              profile_id: prentiss-frontier-operator
+              admin_token: "secret_token_here"
+      responses:
+        '200':
+          description: Layout recomputed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecomputeResponse'
+              example:
+                status: success
+                profile_id: prentiss-frontier-operator
+                nodes_updated: 24
+                edges_updated: 14
+                new_layout:
+                  - node_id: proj-getit
+                    x: 150.5
+                    y: 200.3
+                    z: 0
+                timestamp: "2025-03-07T18:30:00Z"
+                message: "Layout recomputed. 24 nodes repositioned via d3-force."
+        '401':
+          description: Unauthorized (invalid admin token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Layout computation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - Admin
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Bearer token for admin operations (e.g., layout recompute).
+        Public read endpoints do not require auth.
+
+  schemas:
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        title:
+          type: string
+        headline:
+          type: string
+        focus_areas:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - title
+
+    Node:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [project, decision, constraint, failure, metric, skill, outcome, experiment]
+        title:
+          type: string
+        description:
+          type: string
+        gravity_score:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        x:
+          type: number
+          nullable: true
+        y:
+          type: number
+          nullable: true
+        z:
+          type: number
+          nullable: true
+        is_featured:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+      required:
+        - id
+        - type
+        - title
+        - gravity_score
+
+    Edge:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_node_id:
+          type: string
+          format: uuid
+        target_node_id:
+          type: string
+          format: uuid
+        relationship_type:
+          type: string
+          enum:
+            - contains
+            - improves
+            - uses
+            - causes
+            - conflicts_with
+            - depends_on
+            - derived_from
+            - enables
+            - shapes
+            - drives
+            - demonstrates
+            - shares_pattern
+            - led_to
+        weight:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          default: 1.0
+        metadata:
+          type: object
+      required:
+        - id
+        - source_node_id
+        - target_node_id
+        - relationship_type
+
+    GraphPayload:
+      type: object
+      properties:
+        profile:
+          $ref: '#/components/schemas/Profile'
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Node'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Edge'
+      required:
+        - profile
+        - nodes
+        - edges
+
+    NodeDetail:
+      type: object
+      properties:
+        node:
+          $ref: '#/components/schemas/Node'
+        inbound_edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Edge'
+        outbound_edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Edge'
+      required:
+        - node
+        - inbound_edges
+        - outbound_edges
+
+    QueryRequest:
+      type: object
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        query:
+          type: string
+          description: Free-text query string (keywords)
+          example: "marketplace trust"
+        tags:
+          type: array
+          items:
+            type: string
+          description: Optional tag filters (AND logic)
+          example: ["marketplace", "trust"]
+        limit:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      required:
+        - profile_id
+        - query
+
+    QueryResponse:
+      type: object
+      properties:
+        matched_nodes:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              type:
+                type: string
+              title:
+                type: string
+              gravity_score:
+                type: number
+              match_reason:
+                type: string
+                description: Explanation of why node matched
+        highlight_rules:
+          type: object
+          properties:
+            node_ids:
+              type: array
+              items:
+                type: string
+                format: uuid
+              description: Nodes to highlight in canvas
+            edge_ids:
+              type: array
+              items:
+                type: string
+                format: uuid
+              description: Edges to highlight in canvas
+        explanation:
+          type: string
+          description: Human-readable explanation of query results
+      required:
+        - matched_nodes
+        - highlight_rules
+        - explanation
+
+    RecomputeRequest:
+      type: object
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        admin_token:
+          type: string
+          description: Bearer token for admin authentication
+      required:
+        - profile_id
+        - admin_token
+
+    RecomputeResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, error]
+        profile_id:
+          type: string
+          format: uuid
+        nodes_updated:
+          type: integer
+        edges_updated:
+          type: integer
+        new_layout:
+          type: array
+          items:
+            type: object
+            properties:
+              node_id:
+                type: string
+                format: uuid
+              x:
+                type: number
+              y:
+                type: number
+              z:
+                type: number
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+      required:
+        - status
+        - profile_id
+        - timestamp
+
+    Error:
+      type: object
+      properties:
+        status:
+          type: integer
+        message:
+          type: string
+        details:
+          type: object
+      required:
+        - status
+        - message

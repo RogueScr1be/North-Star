@@ -19,7 +19,7 @@ import './AskTheGraphPanel.css';
 interface AskTheGraphPanelProps {
   nodes: GraphNode[];
   projects: GraphProject[];
-  edges: any[];
+  edges?: any[]; // Kept for backward compatibility but not used in Phase 7.1
   onNodeSelect: (node: GraphNode) => void;
   onProjectSelect: (project: GraphProject) => void;
   onEvidenceFocus?: (nodeIds: string[], projectIds: string[]) => void; // Phase 5.6: camera focus callback
@@ -145,7 +145,6 @@ function RecentQueryButton({
 export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
   nodes,
   projects,
-  edges,
   onNodeSelect,
   onProjectSelect,
   onEvidenceFocus,
@@ -153,7 +152,7 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
-  const { loading, answer, error, askGraph, clear, logEvidenceClick } = useAskTheGraph(nodes, projects, edges);
+  const { loading, answer, error, askGraph, clear, logEvidenceClick } = useAskTheGraph(nodes, projects);
 
   // Phase 5.9: Answer context lifecycle tracking
   const answerSessionStartTimeRef = useRef<number | null>(null);

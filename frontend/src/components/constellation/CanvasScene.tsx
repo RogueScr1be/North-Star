@@ -279,6 +279,32 @@ function ProjectsPoints({
     return sz;
   }, [visibleProjects]);
 
+  // Phase 7.0: Log buffer values to diagnose rendering issue
+  useEffect(() => {
+    if (visibleProjects.length === 0) return;
+    
+    console.log('[ProjectsPoints] Buffer diagnostic:');
+    console.log('[ProjectsPoints] - Total visible projects:', visibleProjects.length);
+    console.log('[ProjectsPoints] - Positions array length:', positions.length, '(expect', visibleProjects.length * 3, ')');
+    console.log('[ProjectsPoints] - Colors array length:', colors.length, '(expect', visibleProjects.length * 4, ')');
+    console.log('[ProjectsPoints] - Sizes array length:', sizes.length, '(expect', visibleProjects.length, ')');
+    
+    // Sample first 3 positions (9 values)
+    const posSamples = Array.from(positions.slice(0, Math.min(9, positions.length)));
+    console.log('[ProjectsPoints] - Position samples (first 3 projects, 9 vals):', posSamples, 'has NaN:', posSamples.some(v => isNaN(v)), 'has Infinity:', posSamples.some(v => !isFinite(v)));
+    
+    // Sample first 3 colors (12 values)
+    const colSamples = Array.from(colors.slice(0, Math.min(12, colors.length)));
+    console.log('[ProjectsPoints] - Color samples (first 3 projects, 12 vals):', colSamples, 'has NaN:', colSamples.some(v => isNaN(v)), 'has Infinity:', colSamples.some(v => !isFinite(v)));
+    
+    // Sample first 3 sizes (3 values)
+    const sizeSamples = Array.from(sizes.slice(0, Math.min(3, sizes.length)));
+    console.log('[ProjectsPoints] - Size samples (first 3 projects, 3 vals):', sizeSamples, 'has NaN:', sizeSamples.some(v => isNaN(v)), 'has Infinity:', sizeSamples.some(v => !isFinite(v)));
+    
+    // Log all project IDs to verify they match
+    console.log('[ProjectsPoints] - Project IDs:', visibleProjects.map(p => p.id));
+  }, [visibleProjects, positions, colors, sizes]);
+
   if (visibleProjects.length === 0) return null;
 
   return (

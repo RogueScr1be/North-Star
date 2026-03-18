@@ -1,7 +1,7 @@
-# CLAUDE.MD — NORTH STAR MFP LEARNING LOG
+# AGENTS.md — NORTH STAR MFP LEARNING LOG
 
-**Last Updated:** 2026-03-16
-**Phase:** 6.2 Measurement Window — TRUE LIVE MEASUREMENT 🟢✅
+**Last Updated:** 2026-03-14
+**Phase:** 6.2 Measurement Window — ACTIVE 🟢
 
 ---
 
@@ -239,7 +239,7 @@ frontend/
 2. **pre-phase-1-audit-summary.md** (15KB) — Audit findings
 3. **PHASE-1-QUICK-START.md** (5KB) — Executive summary
 4. **PHASE-1-README.md** (8KB) — Setup + deployment guide
-5. **CLAUDE.md** (this file) — Learning log for future
+5. **AGENTS.md** (this file) — Learning log for future
 
 ---
 
@@ -1965,7 +1965,7 @@ All code paths tested. Graceful fallback verified. Privacy safeguards in place. 
 
 ### Detailed Report
 
-See: `.claude/PHASE-3.8-RUNTIME-VERIFICATION-REPORT.md`
+See: `.Codex/PHASE-3.8-RUNTIME-VERIFICATION-REPORT.md`
 
 ---
 
@@ -2596,7 +2596,7 @@ North Star MVP is production-ready. All Ask-the-Graph features working correctly
 
 **Files Created:**
 - `package.json` (root) — Monorepo scripts
-- `.claude/launch.sh` — Concurrent backend + frontend launcher
+- `.Codex/launch.sh` — Concurrent backend + frontend launcher
 - `~/Desktop/North Star.command` — Quick desktop shortcut
 
 ### Quick Start
@@ -2614,7 +2614,7 @@ npm run dev:full
 
 **Option 3: Direct script**
 ```bash
-~/North\ Star/.claude/launch.sh
+~/North\ Star/.Codex/launch.sh
 ```
 
 ### Available npm Scripts
@@ -4000,7 +4000,7 @@ All events logged via Phase 3.6 SearchAnalyticsLogger:
 
 **Goal:** Execute rigorous observation period for D3 dynamic layout pilot. No feature work, no scope expansion, pure measurement.
 
-**Status: COMPLETE** ✅ — 4 operational documents created + planning documentation added to CLAUDE.md
+**Status: COMPLETE** ✅ — 4 operational documents created + planning documentation added to AGENTS.md
 
 #### Artifacts Delivered
 
@@ -4518,7 +4518,7 @@ VITE_LAYOUT_ENGINE_ENABLED=false
 
 ### Files Created & Location
 
-All artifacts stored in `/Users/thewhitley/North Star/.claude/`:
+All artifacts stored in `/Users/thewhitley/North Star/.Codex/`:
 
 ```
 PHASE-6.1-DEPLOYMENT-CHECKLIST.md
@@ -5059,424 +5059,3 @@ Events can fire to console (console logger fallback) even when PostHog logger wa
 Always verify the full pipeline: key in bundle → SDK loads → `posthog.capture` called → PostHog dashboard shows events.
 
 ---
-
-
----
-
-## 🔧 PHASE 6.2 TRUE ACTIVATION — POSTHOG PIPELINE FIXED (2026-03-16) ✅
-
-### Final Status: TRUE LIVE MEASUREMENT
-
-**Production URL:** https://north-star-red.vercel.app
-**Commit:** `334a28e` — "fix: use phc_ project API key for PostHog JS SDK event ingestion"
-**PostHog Project:** posthog-coffee-kite (ID: 343759)
-**Project API Key:** `phc_8R0iKI16ud8hTCY6O48a6raT7OUW8M2jIR91HCLvZOW`
-
-### Verification Checklist (All Passed)
-
-| Check | Result | Evidence |
-|-------|--------|----------|
-| Anonymous access (HTTP 200) | ✅ | `curl -I` returns 200 |
-| Correct PostHog CDN URL | ✅ | `us-assets.i.posthog.com/static/array.js` (HTTP 200) |
-| Vite guard fixed | ✅ | `key.length < 20` (not string comparison) |
-| phc_ key in HTML | ✅ | `curl html \| grep phc_` returns key |
-| phc_ key accepted by ingestion | ✅ | POST to `us.i.posthog.com/capture/` → `{"status":"Ok"}` |
-| Backend live | ✅ | Railway returns 50 nodes / 4 projects / 45 edges |
-| Graph renders | ✅ | Frontend loads from Railway API |
-| rawQuery excluded from payloads | ✅ | `extractSafePayload()` never includes rawQuery |
-| Analytics logger active | ✅ | PostHogSearchAnalyticsLogger in bundle (not tree-shaken) |
-
-### Critical Lessons Learned (PostHog Integration)
-
-**Lesson 1: phc_ vs phx_ key types are NOT interchangeable**
-- `phx_` = Personal API Key → Used for PostHog Management REST API only
-- `phc_` = Project API Key → Required for client-side JS SDK event ingestion
-- Events sent with `phx_` key are silently accepted by `/capture/` but NOT stored in the project
-- Always use `phc_` in the SDK; use `phx_` only for REST API management calls
-- How to find `phc_`: PostHog → Settings → Project → Project API Key
-
-**Lesson 2: PostHog CDN URL — us.posthog.com/array.js is wrong**
-- `us.posthog.com/array.js` → HTTP 302 redirect to `/login?next=/array.js` (dashboard URL)
-- This causes `array.js` to never load, `window.posthog` stuck as stub forever
-- Correct CDN: `https://us-assets.i.posthog.com/static/array.js` (HTTP 200)
-- Ingestion endpoint: `https://us.i.posthog.com`
-
-**Lesson 3: Vite replaces %VITE_*% in HTML but also substitutes inside guards**
-- `var key = '%VITE_POSTHOG_KEY%'; if (key === '%VITE_POSTHOG_KEY%') return;`
-- Vite substitutes BOTH sides of the comparison → guard is ALWAYS true → PostHog never inits
-- Fix: `if (!key || key.length < 20) return;` — immune to Vite substitution
-
-**Lesson 4: Use PostHog snippet in index.html, NOT posthog.init() in React**
-- React's `useEffect` fires BEFORE CDN script (`array.js`) finishes downloading
-- `window.posthog` exists as a stub array but has no `init()` method at React mount time
-- Fix: Add the PostHog queuing snippet BEFORE `array.js` loads — queues `init()` and all calls
-- The snippet creates a proxy that buffers everything until `array.js` processes the queue
-- `initializeAnalytics.ts` only needs to create the logger wrapper; PostHog init is handled by HTML
-
-**Lesson 5: Vite tree-shaking may remove key from JS bundle (correct behavior)**
-- `import.meta.env.VITE_POSTHOG_KEY` is replaced with a string literal at build time
-- Rollup sees `if (!apiKey) return null` → `if (!"phc_...") return null` → dead code → eliminated
-- The key may NOT appear in the JS bundle even when set — this is correct
-- The key only needs to appear in index.html (for SDK init via snippet)
-- Verification: `curl html | grep phc_` (NOT `curl bundle.js | grep phc_`)
-
-**Lesson 6: Same bundle hash ≠ same env vars in both deployments**
-- Both `phx_` and `phc_` are truthy → after DCE, JS bundle content is identical → same hash
-- Different HTML content (different keys) with same bundle hash is correct and expected
-- Always verify env var correctness in the HTML, not the JS bundle
-
-**Lesson 7: build.sh is the canonical place for Vite env vars in monorepo**
-- Vercel's `env` field in `vercel.json` targets serverless function runtime, NOT Vite build
-- `export VAR=value` in `build.sh` (before `npm run build`) ensures Vite sees it at compile time
-- Hardcoding phc_ key in build.sh is acceptable (it's a client-side public key by design)
-- PostHog project API keys (`phc_`) are designed to be public (exposed in browser JS/HTML)
-
-### Phase 6.2 Day 1 Baseline: 2026-03-16
-
-**True Day 1:** 2026-03-16 (first deployment with correct phc_ key + working pipeline)
-**Measurement window:** 4 weeks → Decision gate: 2026-04-13
-**Events flowing:** All 6 event types active (search, layout, ask_graph series)
-**rawQuery:** Never transmitted (excluded by extractSafePayload())
-**Backend:** Railway (https://north-star-backend-production-83d2.up.railway.app)
-
-
-
----
-
-## 🎯 PHASE 7.1: ASK-THE-GRAPH MVP — OPENAI API INTEGRATION ✅
-
-### Implementation Summary
-
-**Goal:** Integrate OpenAI Responses API for backend LLM synthesis, implementing intelligent model routing (gpt-5.4-mini for cost-efficient simple queries, gpt-5.4 for complex synthesis).
-
-**Status: COMPLETE** ✅
-
-### Why OpenAI Responses API Over Chat Completions
-
-**Decision rationale:**
-
-1. **Model Availability & Cost:** OpenAI's gpt-5.4-mini is cost-efficient for simple queries, gpt-5.4 for complex synthesis. This tiering maps directly to escalation strategy without vendor-specific logic.
-
-2. **Responses API Advantages:** The Responses API is the recommended integration path for GPT-5.4 workflows. It provides superior structured output guarantees and better handling of complex graph synthesis tasks compared to Chat Completions.
-
-3. **Pricing Model:** Per-token pricing aligns with variable workload (simple queries cheap via gpt-5.4-mini, synthesis expensive via gpt-5.4). Selective escalation keeps costs controlled.
-
-4. **Response Structure:** Responses API provides deterministic, structured output formats that improve citation extraction reliability and reduce parsing brittleness.
-
-5. **Model Routing:** gpt-5.4-mini → gpt-5.4 escalation is straightforward and doesn't require vendor-specific conditional logic beyond keyword detection.
-
-### Architecture & Implementation
-
-**Files Modified:**
-
-1. **backend/package.json**
-   - Replaced: `"@anthropic-ai/sdk": "^0.24.0"`
-   - With: `"openai": "^4.52.0"`
-   - Reason: OpenAI SDK is smaller, fewer transitive deps
-
-2. **backend/api/routes/askGraph.ts (Complete Rewrite)**
-   - **LLM Provider:** Integrated OpenAI Responses API (gpt-5.4 family)
-   - **Client Init:**
-     ```typescript
-     const openai = new OpenAI({
-       apiKey: process.env.OPENAI_API_KEY,
-     });
-     ```
-   - **Model Selection Logic:** Added `shouldEscalateModel()` function
-     ```typescript
-     function shouldEscalateModel(question: string, graph: GraphData): boolean {
-       const lowerQuestion = question.toLowerCase();
-       
-       // Multi-project scope keywords
-       const multiProjectKeywords = [
-         'between', 'relationship', 'all projects', 'across', 'connect', 'relate',
-         'integration', 'dependency', 'flow', 'architecture', 'holistic', 'overall'
-       ];
-       
-       // Strategy/synthesis keywords
-       const strategyKeywords = [
-         'should', 'recommend', 'strategy', 'best', 'next', 'priority', 'next step',
-         'roadmap', 'approach', 'plan', 'synthesis', 'summary', 'overview'
-       ];
-       
-       const isMultiProjectQuestion = multiProjectKeywords.some(kw => 
-         lowerQuestion.includes(kw)
-       );
-       const isStrategyQuestion = strategyKeywords.some(kw => 
-         lowerQuestion.includes(kw)
-       );
-       
-       return isMultiProjectQuestion || isStrategyQuestion;
-     }
-     ```
-   - **Model Routing (Responses API):**
-     ```typescript
-     const shouldEscalate = shouldEscalateModel(question, graph);
-     const model = shouldEscalate ? 'gpt-5.4' : 'gpt-5.4-mini';
-     
-     const response = await openai.beta.messages.create({
-       model: model,
-       max_tokens: 1024,
-       messages: [
-         {
-           role: 'user',
-           content: `${graphContext}\n\nUser Question: ${question}...`
-         }
-       ]
-     });
-     ```
-   - **Response Extraction:** Uses Responses API structured output (guaranteed deterministic format)
-   - **Citation Extraction:** Unchanged (pattern matching on entity titles works regardless of LLM provider)
-   - **Response Format:** Identical to Phase 4.0 (answer, citedNodeIds, citedProjectIds, confidence)
-
-3. **backend/.env**
-   - Added: `OPENAI_API_KEY=sk-proj-K2KchBodya1y9mC6DR2LEgj7uY4Y-Eri-MqeBZkmf7pTFshp53OL-9SD0TL4igdmHWAc`
-
-4. **frontend/src/hooks/useAskTheGraph.ts**
-   - Line 46–47: Updated comment from "Claude-powered answers" to "OpenAI-powered answers with model routing"
-   - Line 105: Updated explanation from "Claude-synthesized" to "OpenAI-synthesized"
-   - Line 123: Changed analytics `questionType` from 'claude_synthesis' to 'openai_synthesis'
-   - Line 146: Changed `attemptedQuestionType` from 'claude_synthesis' to 'openai_synthesis'
-   - **No structural changes:** Response format (answer, citedNodeIds, citedProjectIds, confidence) is identical; frontend mapping logic untouched
-
-### Escalation Strategy (Model Routing)
-
-**Default Model:** gpt-5.4-mini (cost-efficient, optimized for grounded graph Q&A)
-**Escalation Triggers:**
-1. Multi-project scope: "between", "relationship", "all projects", "across", "connect", "relate", "integration", "dependency", "flow", "architecture", "holistic", "overall"
-2. Strategy/synthesis: "should", "recommend", "strategy", "best", "next", "priority", "next step", "roadmap", "approach", "plan", "synthesis", "summary", "overview"
-3. Open-ended: Inherently open-ended questions (no specific entity mention)
-
-**Escalation Model:** gpt-5.4 (preferred for complex multi-hop reasoning, synthesis across multiple entities, strategy questions)
-
-**Cost Impact:**
-- Simple queries ("What is X?"): gpt-5.4-mini (cost baseline)
-- Complex synthesis ("How do X and Y relate?"): gpt-5.4 (~3× cost)
-- Ratio: Selective escalation keeps overall spend efficient
-
-### Verification
-
-**Build Status:** ✅ PASS
-- `npm install` in backend: Successfully installed openai SDK
-- `npm run build` in frontend: TypeScript 0 errors, Vite 3.18s
-- Full project build: Success, no missing type definitions
-- All Phase 4.0 features preserved (answer panel, evidence clicks, citations)
-
-**API Contract Preserved:** ✅
-- Backend response: `{ success: boolean, answer: string, citedNodeIds: string[], citedProjectIds: string[], confidence: 'high'|'medium'|'low', error?: string }`
-- Frontend mapping: Zero changes (response structure identical to Phase 4.0)
-- Picker integration: Ask-the-Graph panel unchanged
-- Analytics events: Updated but not broken (new fields valid JSON)
-
-**Regressions:** ZERO ✅
-- Phase 4.0 Ask-the-Graph functionality preserved
-- All Phases 2.3–4.0 features fully intact
-- Search, selection, URL sync, semantic filters, D3 layout unchanged
-- Knowledge graph comprehension flow unchanged
-
-### Lessons Learned & Design Decisions
-
-1. **API Contract Preservation:** By maintaining identical response format between providers, we avoided frontend changes and reduced integration risk. This is a powerful pattern for LLM abstraction.
-
-2. **Keyword-Based Escalation:** Pattern-matching keywords is simpler and more deterministic than semantic understanding or token counting. Low false-positive rate on typical queries.
-
-3. **Model Tiering Is Essential:** Using gpt-4-mini for simple queries saves significant cost. A single gpt-4-turbo model would cost 3–5× more for the same overall capability. Escalation logic pays for itself quickly.
-
-4. **Citation Extraction Independence:** Pattern matching on entity titles works regardless of LLM. More robust than relying on LLM-specific citation formats or structured output modes.
-
-5. **SDK Differences Are Minimal:** Both Anthropic and OpenAI use similar request/response structures. The main difference is SDK namespace (client initialization and method names). This made the pivot tractable.
-
-6. **Env Var Configuration:** Using `process.env.OPENAI_API_KEY` keeps credentials out of code and enables easy switching between environments (dev, staging, prod).
-
-### Known Limitations & Deferred to Phase 8+
-
-1. **No streaming:** Current implementation waits for full response before returning. Streaming would enable progressive rendering of long answers.
-
-2. **No token tracking:** We don't monitor token usage per query. Future: Add analytics event for token_usage to inform cost/performance tradeoffs.
-
-3. **Determinism not guaranteed:** OpenAI models can produce slightly different answers for the same input (temperature=1.0 default). Future: Lower temperature to 0.7 if consistency is important.
-
-4. **No fallback to Anthropic:** If OpenAI API fails, there's no automatic fallback to Claude. Future: Implement provider fallback chain for resilience.
-
-5. **No user-controlled escalation:** Escalation happens automatically. Future: Allow users to manually request gpt-4-turbo for curiosity/quality.
-
-### Testing Recommendations for Phase 8+
-
-**Simple Query Test (Should Use gpt-5.4-mini):**
-```
-Q: "What is North Star?"
-Expected: Uses gpt-5.4-mini, fast response (~200ms)
-```
-
-**Complex Query Test (Should Escalate to gpt-5.4):**
-```
-Q: "How are GetIT and Fast Food connected across the architecture?"
-Expected: Uses gpt-5.4, synthesis response (~500ms)
-```
-
-**Fallback Test:**
-```
-Q: "..." with API key set to garbage
-Expected: Clean error response, no crash, graceful degradation
-```
-
-### Cost Projection (Phase 8+)
-
-Assuming 100 queries/day across 30 days:
-- 80% simple queries @ gpt-5.4-mini: 2,400 queries (cost baseline)
-- 20% complex queries @ gpt-5.4: 600 queries (≈3× cost baseline per query)
-- **Total: Conservative spend for single-founder MVP**
-
-Escalation strategy ensures only truly complex synthesis questions trigger gpt-5.4, keeping overall spend efficient while maintaining quality for synthesis tasks.
-
-### Future Enhancements (Phase 8+)
-
-**Priority 1 (Cost/Quality):**
-- Token usage tracking (analytics event)
-- Temperature tuning for determinism
-- Streaming support for large answers
-
-**Priority 2 (Resilience):**
-- Provider fallback chain (OpenAI → Anthropic)
-- Error recovery (retry with exponential backoff)
-- Query caching (avoid re-querying same question)
-
-**Priority 3 (User Control):**
-- Manual escalation toggle in UI
-- Token budget per user (prevent abuse)
-- Answer quality rating (feedback loop)
-
-### Production Readiness
-
-✅ **READY FOR DEPLOYMENT**
-
-- Zero breaking changes
-- All Phase 4.0 features fully preserved
-- TypeScript clean (0 errors)
-- Build verified (3.18s Vite, all assets)
-- OpenAI API key configured
-- Model routing logic tested mentally (keyword detection is simple logic)
-- Response format preserved (frontend unchanged)
-- Cost projection favorable (~$4–5/month)
-- Escalation strategy sensible (3:1 cost ratio justifies selective escalation)
-
-**Deployment notes:**
-- Set `OPENAI_API_KEY` env var before deploying to production
-- Monitor first week for token usage and model distribution (how often escalation triggers)
-- Be ready to tune escalation keywords if too many false positives/negatives
-
----
-
-**Phase 7.1 Complete:** OpenAI API integration complete. Model routing strategy implemented. Cost-optimized tiering in place. All prior phases intact. Ready for Phase 8 (streaming + token tracking) or production deployment. 🚀
-
-
----
-
-## 🎨 PHASE 7.1: OPENAI ASK-THE-GRAPH INTEGRATION — RUNTIME VERIFICATION ✅
-
-### Implementation Summary
-
-**Goal:** Verify OpenAI runtime path end-to-end for Phase 7.1 Ask-the-Graph integration
-
-**Status: BLOCKED** — Invalid API Key (can be fixed by user with valid OpenAI key)
-
-### Code Updates
-
-**Files Modified:** `backend/api/routes/askGraph.ts`
-
-**Changes Applied:**
-1. ✅ Updated model selection from `gpt-4-turbo`/`gpt-4-mini` to `gpt-5.4`/`gpt-5.4-mini`
-2. ✅ Updated API call to use `openai.chat.completions.create()` with gpt-5.4 models
-3. ✅ Updated helper function comments to reference gpt-5.4 models
-4. ✅ Response extraction uses standard Chat Completions response structure
-5. ✅ TypeScript compiles cleanly (0 errors)
-
-### Architectural Findings
-
-- **OpenAI SDK 4.104.0 Limitation:** Does not expose `beta.messages` API for Responses API
-- **Workaround:** Standard `chat.completions` API works correctly with gpt-5.4 models
-- **Model Routing:** Escalation logic functions correctly (gpt-5.4-mini default, gpt-5.4 escalation)
-- **Error Handling:** Robust, graceful fallback when OPENAI_API_KEY missing
-
-### Test Results Summary
-
-**Local Runtime Tests (5 Prompts):**
-```
-Test 1: "What is North Star?"
-  Status: BLOCKED (401 Invalid API Key)
-  Code path: ✅ VERIFIED (hits OpenAI endpoint)
-  Model selected: gpt-5.4-mini (correct, no escalation)
-
-Tests 2-5: Relationship, constraints, failures, next steps
-  Status: BLOCKED (401 Invalid API Key - same issue)
-  Code path: ✅ VERIFIED (all hit OpenAI endpoint)
-  Escalation: ✅ VERIFIED (strategy prompts correctly escalate)
-```
-
-**Failure Handling Test:**
-```
-Missing OPENAI_API_KEY:
-  Response: {"success":false,"error":"OPENAI_API_KEY is not set"}
-  Behavior: ✅ GRACEFUL (no crash, clear error message)
-  Backend stability: ✅ STABLE (proper HTTP error codes)
-```
-
-### Root Cause: Invalid API Key
-
-The API key in `.env` appears to be a placeholder or expired test key that OpenAI rejects with 401 Unauthorized.
-
-**Error Details:**
-```
-401 Incorrect API key provided: sk-proj-****. 
-You can find your API key at https://platform.openai.com/account/api-keys.
-```
-
-### Critical Verification Results
-
-✅ **Code Quality:** TypeScript compilation succeeds (0 errors)
-✅ **Error Handling:** Fails gracefully without crashes
-✅ **Model Routing:** Escalation logic working correctly
-✅ **API Integration:** Successfully calls OpenAI endpoints
-✅ **Failure Paths:** No 500 errors, proper HTTP status codes
-⚠️ **API Key:** Current key invalid (blocks prompt testing)
-✅ **Architecture:** Backend integrates correctly with Chat Completions API
-
-### Next Steps for Full Verification
-
-**To Complete Phase 7.1 Testing:**
-1. Obtain valid OpenAI API key with gpt-5.4 model access
-2. Update `backend/.env` with valid OPENAI_API_KEY
-3. Restart backend (`npm run dev --workspace=backend`)
-4. Re-run 5 test prompts to verify:
-   - Answer generation works
-   - Model escalation triggers correctly
-   - Citations extract accurately
-   - Evidence highlighting renders on canvas
-5. Test production deployment with valid key
-
-**Production Status:** Ready to deploy once valid API key provided
-
-### Design Decisions Documented
-
-**Model Selection Strategy:**
-- Default: `gpt-5.4-mini` (cost-efficient for grounded Q&A)
-- Escalation: `gpt-5.4` (for multi-project, strategy, synthesis questions)
-- Rationale: Cost optimization (3× cost difference justifies selective escalation)
-
-**API Choice:**
-- Used: `openai.chat.completions.create()` (standard API)
-- Reason: SDK 4.104.0 doesn't expose Responses API; Chat Completions works fine with gpt-5.4
-- Future: Can upgrade to Responses API when SDK updated
-
-### Files Changed (Phase 7.1 Session)
-
-1. **backend/api/routes/askGraph.ts**
-   - Line 118-127: Updated model routing comments
-   - Line 255-257: Changed model selection to gpt-5.4/gpt-5.4-mini
-   - Line 262-286: Updated API call to openai.chat.completions.create
-   - Status: ✅ Compiles cleanly, tested and working (blocked only by invalid key)
-
----
-
-**Phase 7.1 Status:** Implementation complete and verified to work. Blocked only by invalid OpenAI API key (user action required). Code ready for production deployment.
-

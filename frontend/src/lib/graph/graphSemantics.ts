@@ -246,6 +246,10 @@ export function computeSemanticVisibility(
   edges: GraphEdge[],
   filters: SemanticFilters
 ): SemanticVisibility {
+  // DEBUG: Trace project visibility computation
+  console.log('[SemanticVisibility] Input graph has', graph.projects.length, 'projects:', graph.projects.map(p => ({ id: p.id, title: p.title })));
+  console.log('[SemanticVisibility] Input filters:', { subgraphNodeId: filters.subgraphNodeId, projectClusterId: filters.projectClusterId, enabledNodeTypes: filters.enabledNodeTypes.size, enabledTags: filters.enabledTags.size });
+  
   let visibleNodeIds = new Set<string>();
   let visibleProjectIds = new Set<string>();
   let reason: SemanticVisibility['reason'] = 'all';
@@ -256,13 +260,14 @@ export function computeSemanticVisibility(
     const hops = filters.subgraphHops ?? 1;
     const subgraphIds = computeSubgraph(graph, edges, filters.subgraphNodeId, hops);
 
-    // Separate into nodes and projects
+    // Add reachable nodes (projects aren't connected via edges, so won't appear in subgraph)
     for (const id of subgraphIds) {
-      const node = graph.nodes.find(n => n.id === id);
-      const project = graph.projects.find(p => p.id === id);
+      visibleNodeIds.add(id);
+    }
 
-      if (node) visibleNodeIds.add(id);
-      else if (project) visibleProjectIds.add(id);
+    // Always preserve all projects as structural anchors (independent of subgraph topology)
+    for (const project of graph.projects) {
+      visibleProjectIds.add(project.id);
     }
 
     reason = 'subgraph';
@@ -289,10 +294,12 @@ export function computeSemanticVisibility(
     }
 
     reason = 'all';
+    console.log('[SemanticVisibility] "all" mode: added', visibleProjectIds.size, 'projects:', Array.from(visibleProjectIds));
   }
 
   // Apply type/tag filtering (refines visible set)
   if (filters.enabledNodeTypes.size > 0 || filters.enabledTags.size > 0) {
+    console.log('[SemanticVisibility] Before type/tag filtering: visibleProjectIds =', Array.from(visibleProjectIds), '(size:', visibleProjectIds.size, ')');
     const attributeFiltered = filterNodesByAttributes(
       graph,
       filters.enabledNodeTypes,
@@ -304,6 +311,7 @@ export function computeSemanticVisibility(
     );
 
     reason = 'filtered';
+    console.log('[SemanticVisibility] After type/tag filtering: visibleProjectIds =', Array.from(visibleProjectIds), '(size:', visibleProjectIds.size, ')');
   }
 
   // Compute visible edges
@@ -315,6 +323,14 @@ export function computeSemanticVisibility(
     filters.edgeGravityThreshold,
     filters.enabledRelationshipTypes
   );
+
+  console.log('[SemanticVisibility] Final result:', {
+    reason,
+    visibleNodes: visibleNodeIds.size,
+    visibleProjects: visibleProjectIds.size,
+    projectIds: Array.from(visibleProjectIds),
+    visibleEdges: visibleEdgeIds.size
+  });
 
   return {
     visibleNodeIds,

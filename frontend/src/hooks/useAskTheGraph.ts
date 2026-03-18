@@ -5,30 +5,13 @@
  */
 
 import { useCallback, useState } from 'react';
-import { GraphNode, GraphProject, GraphEdge } from '../lib/graph/graphTypes';
+import { GraphNode, GraphProject } from '../lib/graph/graphTypes';
 import { Answer } from '../lib/graph/answerComposer';
 import {
-  detectQuestionType,
-  findEntityByTitle,
-  findNodesByTag,
-  findNodesInProject,
-  findShortestPath,
-  getConnectedNodes,
-  getIncomingEdges,
-  getOutgoingEdges,
-  findCommonRelationships,
-  extractDefinitionEvidence,
-  extractRelationshipEvidence,
-  extractEdgeEvidence,
-  AnswerEvidence,
-} from '../lib/graph/graphQueries';
-import { composeAnswer } from '../lib/graph/answerComposer';
-import {
-  logSearchEvent,
-  AskGraphSubmittedEvent,
   AskGraphAnsweredEvent,
   AskGraphNoAnswerEvent,
   AskGraphEvidenceClickedEvent,
+  logSearchEvent,
 } from '../lib/analytics/searchAnalytics';
 import { sanitizeSearchQuery } from '../lib/analytics/queryRedaction';
 
@@ -49,8 +32,7 @@ export interface AskTheGraphState {
 
 export function useAskTheGraph(
   nodes: GraphNode[] | null,
-  projects: GraphProject[] | null,
-  edges: GraphEdge[] | null
+  projects: GraphProject[] | null
 ) {
   const [state, setState] = useState<AskTheGraphState>({
     query: '',
@@ -61,7 +43,8 @@ export function useAskTheGraph(
 
   /**
    * Main query execution function
-   * Handles: parse → retrieve → compose → analytics
+   * Calls backend /api/ask-graph endpoint for OpenAI-powered answers
+   * Phase 7.1: OpenAI API integration with model routing for improved synthesis
    */
   const askGraph = useCallback(
     (query: string) => {
@@ -70,174 +53,107 @@ export function useAskTheGraph(
         return;
       }
 
-      if (!nodes || !projects || !edges) {
-        setState({
-          query,
-          loading: false,
-          answer: null,
-          error: 'Graph data not loaded',
-        });
-        return;
-      }
-
       setState({ query, loading: true, answer: null, error: null });
 
-      try {
-        // Step 1: Parse intent
-        const parsed = detectQuestionType(query);
-
-        // Step 2: Retrieve evidence based on question type
-        let evidence: AnswerEvidence;
-
-        switch (parsed.type) {
-          case 'definition': {
-            const entity = findEntityByTitle(nodes, projects, parsed.primaryEntity || '');
-            if (!entity) {
-              evidence = { nodeIds: new Set(), projectIds: new Set(), edgeIds: new Set(), explanation: 'Not found' };
-            } else {
-              evidence = extractDefinitionEvidence(entity.data);
-            }
-            break;
-          }
-
-          case 'relationship': {
-            const source = findEntityByTitle(nodes, projects, parsed.primaryEntity || '');
-            const target = findEntityByTitle(nodes, projects, parsed.secondaryEntity || '');
-
-            if (!source || !target) {
-              evidence = { nodeIds: new Set(), projectIds: new Set(), edgeIds: new Set(), explanation: 'Entity not found' };
-            } else {
-              // Get IDs as strings
-              const sourceId = source.data.id;
-              const targetId = target.data.id;
-
-              // Find path
-              const path = findShortestPath(nodes, edges, sourceId, targetId, 3);
-              evidence = extractRelationshipEvidence(path, nodes, projects);
-            }
-            break;
-          }
-
-          case 'scope': {
-            const project = projects.find(p => p.title.toLowerCase().includes((parsed.primaryEntity || '').toLowerCase()));
-            if (!project) {
-              evidence = { nodeIds: new Set(), projectIds: new Set(), edgeIds: new Set(), explanation: 'Project not found' };
-            } else {
-              evidence = {
-                nodeIds: new Set(findNodesInProject(nodes, project.id).map(n => n.id)),
-                projectIds: new Set([project.id]),
-                edgeIds: new Set(),
-                explanation: `Nodes in ${project.title}`,
-              };
-            }
-            break;
-          }
-
-          case 'patterns': {
-            const commonRels = findCommonRelationships(edges);
-            evidence = {
-              nodeIds: new Set(),
-              projectIds: new Set(),
-              edgeIds: new Set(edges.map(e => e.id)),
-              explanation: commonRels.slice(0, 3).map(r => `${r.type} (${r.percentage}%)`).join(', '),
-            };
-            break;
-          }
-
-          case 'causality_incoming': {
-            const entity = findEntityByTitle(nodes, projects, parsed.primaryEntity || '');
-            if (!entity) {
-              evidence = { nodeIds: new Set(), projectIds: new Set(), edgeIds: new Set(), explanation: 'Entity not found' };
-            } else {
-              const incomingEdges = getIncomingEdges(edges, entity.data.id);
-              const connected = getConnectedNodes(nodes, projects, incomingEdges, entity.data.id);
-              evidence = extractEdgeEvidence(connected.inbound, 'incoming');
-            }
-            break;
-          }
-
-          case 'causality_outgoing': {
-            const entity = findEntityByTitle(nodes, projects, parsed.primaryEntity || '');
-            if (!entity) {
-              evidence = { nodeIds: new Set(), projectIds: new Set(), edgeIds: new Set(), explanation: 'Entity not found' };
-            } else {
-              const outgoingEdges = getOutgoingEdges(edges, entity.data.id);
-              const connected = getConnectedNodes(nodes, projects, outgoingEdges, entity.data.id);
-              evidence = extractEdgeEvidence(connected.outbound, 'outgoing');
-            }
-            break;
-          }
-
-          case 'tag_search': {
-            const tagNodes = findNodesByTag(nodes, parsed.tag || '');
-            evidence = {
-              nodeIds: new Set(tagNodes.map(n => n.id)),
-              projectIds: new Set(),
-              edgeIds: new Set(),
-              explanation: `Nodes with tag "${parsed.tag}"`,
-            };
-            break;
-          }
-
-          case 'unknown':
-          default: {
-            evidence = { nodeIds: new Set(), projectIds: new Set(), edgeIds: new Set(), explanation: 'Query type unknown' };
-            break;
-          }
-        }
-
-        // Step 3: Compose answer
-        const answer = composeAnswer(parsed, evidence, nodes, projects);
-
-        setState({ query, loading: false, answer, error: null });
-
-        // Step 4: Log analytics
+      // Call backend endpoint
+      (async () => {
         try {
-          const { sanitizedQuery, queryHash } = sanitizeSearchQuery(query);
+          const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
-          if (answer.type === 'success') {
+          const response = await fetch(`${API_BASE}/ask-graph`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: query }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+
+          if (!result.success) {
+            throw new Error(result.error || 'Unknown error from backend');
+          }
+
+          // Transform backend response to Answer format
+          const citedNodeIds = result.citedNodeIds || [];
+          const citedProjectIds = result.citedProjectIds || [];
+
+          const citedNodes = citedNodeIds
+            .map((id: string) => {
+              const node = nodes?.find(n => n.id === id);
+              return node || { id, type: 'unknown', title: id, description: '' };
+            })
+            .filter(Boolean) as GraphNode[];
+
+          const citedProjects = citedProjectIds
+            .map((id: string) => {
+              const proj = projects?.find(p => p.id === id);
+              return proj || { id, title: id, description: '', gravity_score: 0 };
+            })
+            .filter(Boolean) as GraphProject[];
+
+          const answer: Answer = {
+            type: 'success',
+            text: result.answer,
+            confidence: result.confidence || 'medium',
+            evidence: {
+              nodeIds: new Set(citedNodeIds),
+              projectIds: new Set(citedProjectIds),
+              edgeIds: new Set(),
+              explanation: 'OpenAI-synthesized answer based on graph context',
+            },
+            citedNodes,
+            citedProjects,
+            explanation: 'OpenAI-synthesized answer based on graph context',
+          };
+
+          setState({ query, loading: false, answer, error: null });
+
+          // Step 4: Log analytics
+          try {
+            const { sanitizedQuery, queryHash } = sanitizeSearchQuery(query);
+
             logSearchEvent({
               type: 'ask_graph_answered',
               sanitizedQuery,
               queryHash,
-              entity: parsed.primaryEntity || parsed.tag || '',
-              questionType: parsed.type,
+              entity: '',
+              questionType: 'openai_synthesis',
               answerLength: answer.text.length,
               citedNodeCount: answer.citedNodes.length,
               citedProjectCount: answer.citedProjects.length,
               answerConfidence: answer.confidence,
               timestamp: Date.now(),
             } as const as AskGraphAnsweredEvent);
-          } else if (answer.type === 'no_data') {
+          } catch (analyticsErr) {
+            console.error('[AskTheGraph] Analytics error:', analyticsErr);
+            // Silently fail, don't break UX
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+          setState({ query, loading: false, answer: null, error: errorMessage });
+
+          // Log error analytics
+          try {
+            const { sanitizedQuery, queryHash } = sanitizeSearchQuery(query);
             logSearchEvent({
               type: 'ask_graph_no_answer',
               sanitizedQuery,
               queryHash,
-              entity: parsed.primaryEntity || parsed.tag || '',
-              attemptedQuestionType: parsed.type,
-              reason: 'no_data',
+              entity: '',
+              attemptedQuestionType: 'openai_synthesis',
+              reason: 'backend_error',
               timestamp: Date.now(),
             } as const as AskGraphNoAnswerEvent);
-          } else {
-            logSearchEvent({
-              type: 'ask_graph_submitted',
-              sanitizedQuery,
-              queryHash,
-              entity: parsed.primaryEntity || parsed.tag || '',
-              questionType: parsed.type,
-              timestamp: Date.now(),
-            } as const as AskGraphSubmittedEvent);
+          } catch (analyticsErr) {
+            console.error('[AskTheGraph] Error analytics error:', analyticsErr);
           }
-        } catch (analyticsErr) {
-          console.error('[AskTheGraph] Analytics error:', analyticsErr);
-          // Silently fail, don't break UX
         }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error processing query';
-        setState({ query, loading: false, answer: null, error: errorMessage });
-      }
+      })();
     },
-    [nodes, projects, edges]
+    [nodes, projects]
   );
 
   /**

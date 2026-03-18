@@ -1,0 +1,667 @@
+{
+  "profile": {
+    "id": "prentiss-frontier-operator",
+    "name": "Prentiss",
+    "title": "Frontier Operator",
+    "headline": "Building AI-native operating systems and coordination layers",
+    "focus_areas": [
+      "AI-native operating systems",
+      "Coordination layers",
+      "Decision compression systems",
+      "Knowledge acquisition platforms"
+    ],
+    "created_at": "2025-01-01T00:00:00Z",
+    "updated_at": "2025-03-07T00:00:00Z"
+  },
+  "projects": [
+    {
+      "id": "proj-getit",
+      "type": "project",
+      "name": "GetIT",
+      "gravity_score": 0.9,
+      "status": "active",
+      "short_desc": "Video-first transactional local services marketplace",
+      "system_design": "Video-first transactional local services marketplace. Core documented MVP includes h-app editing, high-quality video playback, real-time notifications, payments, brief recommendations, AI-based tagging/transcription. Longer-term direction: geo-boosting, video insight, contextual personalization, voice, offline-on-device, and ambient layers.",
+      "is_featured": true
+    },
+    {
+      "id": "proj-fastfood",
+      "type": "project",
+      "name": "Fast Food",
+      "gravity_score": 0.75,
+      "status": "active",
+      "short_desc": "AI-native family meal-planning / dinner-decision OS",
+      "system_design": "AI-native family meal-planning and dinner-decision operating system. Local-first intelligence with biometric learning stored in Supabase. Context-aware inputs including living geography. NaiveExpo path established for navigation tooling. Expansion UX intended to stay short by default.",
+      "is_featured": true
+    },
+    {
+      "id": "proj-anansi",
+      "type": "project",
+      "name": "Anansi",
+      "gravity_score": 0.65,
+      "status": "active",
+      "short_desc": "AI-native platform converting lessons into playable educational games",
+      "system_design": "AI-native platform that tunes lessons into playable indie-grade educational games. Concept is lesson-to-game generation positioned between serious edtech and fun-but-shallow learning products. Targets three audiences simultaneously: kids (engagement), teachers (results + evidence), parents (simple, engaging experience).",
+      "is_featured": true
+    },
+    {
+      "id": "proj-northstar",
+      "type": "project",
+      "name": "North Star",
+      "gravity_score": 0.85,
+      "status": "active",
+      "short_desc": "Knowledge graph constellation rendering founder capability",
+      "system_design": "Knowledge graph / constellation-style product centered on a single founder profile. Three core surfaces: Constellation Canvas (force-directed graph visualization), Node Expansion Panel (drill-down detail), Ask-the-Graph interface (semantic query layer). Graph engine renders people/projects/skills/decisions/work with clustering, node expansion, and graph querying as core interaction patterns. Initial scope: Single Profile v0 with stable rendering, performance budgets, zoom levels, and clarity acceptance criteria.",
+      "is_featured": true
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node-getit-constraint-trust",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "constraint",
+      "title": "Marketplace Trust & Recommendation Transparency",
+      "description": "Marketplace trust and recommendation transparency matter. Expansion into ambient platform materiality requires explicitly noting ethical issues around material requirements.",
+      "gravity_score": 0.85,
+      "tags": ["marketplace", "trust", "ethics", "transparency"],
+      "ref_table": "projects",
+      "ref_id": "proj-getit",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Marketplace trust and recommendation transparency matter. Expansion into ambient platform materiality. Ethical issues around material requirements are explicitly noted."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-getit-decision-invite-only",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "decision",
+      "title": "Invite-Only Controlled Launch Strategy",
+      "description": "Launch first with invite-only controlled access. Phased expansion with trust-building as part of GTM logic, rather than attempting full marketplace launch in one month.",
+      "gravity_score": 0.9,
+      "tags": ["marketplace", "gtm", "go-to-market", "trust-building"],
+      "ref_table": "projects",
+      "ref_id": "proj-getit",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Invite-only controlled launch first. I do not have a source-backed record of failed experiments, architectural reversals, GTM experiments. Phased expansion as part of GTM logic."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-getit-metric-watchthrough",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "metric",
+      "title": "Watch-Through Rate (Primary KPI)",
+      "description": "Watch-through rates on GetIT, clicks, and ASR buffer response. MVP capabilities are descriptive rather than prescriptive; testing and UX iteration ongoing.",
+      "gravity_score": 0.8,
+      "tags": ["metrics", "engagement", "video"],
+      "ref_table": "projects",
+      "ref_id": "proj-getit",
+      "is_featured": false,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Watch-through rates, GetIT clicks, and ASR buffer. MVP capabilities are descriptive rather than prescribing testing and UX iteration. I do not have documented live business metrics for bookings, GMV, retention, vendor density, or CAC."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-getit-failure-metrics-sparse",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "failure",
+      "title": "No Formal Failure Log (Documented)",
+      "description": "No formal failure log documented. Source-backed record of failed experiments, architectural reversals, or GTM experiments not yet captured.",
+      "gravity_score": 0.5,
+      "tags": ["testing", "learning", "risk"],
+      "ref_table": "projects",
+      "ref_id": "proj-getit",
+      "is_featured": false,
+      "metadata": {
+        "status": "gap",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "No formal failure log documented. I do not have a source-backed record of failed experiments, architectural reversals, GTM experiments, or operational breakdowns."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-fastfood-constraint-simple",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "constraint",
+      "title": "Must Remain Simple, Calm, Mature",
+      "description": "Product must remain simple, calm, mature, and low-friction for mentally-consumed users. Local-first is an architectural constraint. Weather integration and accessibility treated as first-pass areas.",
+      "gravity_score": 0.8,
+      "tags": ["design", "ux", "simplicity", "local-first"],
+      "ref_table": "projects",
+      "ref_id": "proj-fastfood",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Must remain simple, calm, mature, and low-friction for mentally-consumed users. Local-first is a constraint. Weather integration. Accessibility is a first-pass area."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-fastfood-decision-localfirst",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "decision",
+      "title": "Local-First Architecture (Over Cloud-First)",
+      "description": "Chose local-first over cloud-first design. Data stored in Supabase with context-aware inputs. Supports offline capability and user agency over remote synchronization.",
+      "gravity_score": 0.9,
+      "tags": ["architecture", "local-first", "data", "offline"],
+      "ref_table": "projects",
+      "ref_id": "proj-fastfood",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Local-first over cloud-first. Supabase. One-line decision explanation. Baseline. NaiveExpo chosen for current upgrade path."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-fastfood-decision-naiveexpo",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "decision",
+      "title": "NaiveExpo Chosen for Navigation",
+      "description": "NaiveExpo path established for navigation tooling. One-line decision explanation. Baseline UX intent is to stay short by default during expansion.",
+      "gravity_score": 0.7,
+      "tags": ["technology", "navigation", "ux"],
+      "ref_table": "projects",
+      "ref_id": "proj-fastfood",
+      "is_featured": false,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "NaiveExpo path established. Navigation is tooled, and expansion UX is intended to stay short by default."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-fastfood-outcome-philosophy",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "outcome",
+      "title": "Strongly Developed Product Philosophy",
+      "description": "Fast Food has developed a strong product philosophy and interaction design approach. Initial interaction design documented and coherent. Expansion UX intent is clear (stay short).",
+      "gravity_score": 0.75,
+      "tags": ["product", "design", "philosophy"],
+      "ref_table": "projects",
+      "ref_id": "proj-fastfood",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Strongly developed product philosophy and interaction design. These document the initial interaction design."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-anansi-constraint-three-audiences",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "constraint",
+      "title": "Must Satisfy Three Audiences Simultaneously",
+      "description": "Product must satisfy three distinct audiences at once: kids (need engagement), teachers (need results and evidence), parents (need simplicity and engagement). Cannot optimize for one at expense of others.",
+      "gravity_score": 0.85,
+      "tags": ["edtech", "product", "design", "market"],
+      "ref_table": "projects",
+      "ref_id": "proj-anansi",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Must satisfy three audiences at once. Kids need engagement. Teachers need results and evidence. Parents need simple, engaging."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-anansi-decision-ai-native-wedge",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "decision",
+      "title": "AI-Native Lesson-to-Game Generation as Wedge",
+      "description": "Positioning Anansi as AI-native platform with lesson-to-game generation as the core wedge. Concept positioned between serious edtech and fun-but-shallow learning products. Rather than generic quiz or software approach.",
+      "gravity_score": 0.85,
+      "tags": ["ai", "edtech", "positioning", "product-market-fit"],
+      "ref_table": "projects",
+      "ref_id": "proj-anansi",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Positioning is AI-native. The wedge is lesson-to-game generation. Rather than generic conversion ratio or quiz software."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-anansi-outcome-opportunity",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "outcome",
+      "title": "Strong Opportunity Framing & Strategic Story",
+      "description": "Anansi has developed strong opportunity framing and strategic narrative. Concept occupies clear position in edtech spectrum. Tech approach aligned with market timing and audience needs.",
+      "gravity_score": 0.7,
+      "tags": ["edtech", "strategy", "positioning"],
+      "ref_table": "projects",
+      "ref_id": "proj-anansi",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Strong opportunity framing and strategic story and tech. I do not have documented pilots, classroom results."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-northstar-decision-single-profile",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "decision",
+      "title": "Start with Single Profile v0 (Not Multi-User)",
+      "description": "Explicit decision to begin with single founder profile rendering, not multi-user network. Scope locked from source. Necessary for proof of concept before expanding to broader universe.",
+      "gravity_score": 0.95,
+      "tags": ["scope", "mvp", "prioritization", "product-strategy"],
+      "ref_table": "projects",
+      "ref_id": "proj-northstar",
+      "is_featured": true,
+      "metadata": {
+        "status": "locked",
+        "evidence": [
+          {
+            "source": "MFP Source of Truth",
+            "detail": "Scope: audit source content; define node taxonomy; decide exact project set; create design tokens and API contracts. Phase 0 focus: single founder constellation only."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-northstar-constraint-immersive-clarity",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "constraint",
+      "title": "Must Feel Immersive & Beautiful Without Visual Heaviness",
+      "description": "Interface must feel immersive and beautiful without becoming visually heavy or cluttered. Current phase focuses on maintaining clarity. Document spec direction for single profile v0. Interface integrity depends on clear information hierarchy and avoiding over-rendering.",
+      "gravity_score": 0.9,
+      "tags": ["design", "ux", "clarity", "aesthetics"],
+      "ref_table": "projects",
+      "ref_id": "proj-northstar",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "Must feel immersive and beautiful without becoming visually heavy. Current phase is 'locked from source.' Decision to separate interface. Profile rather than system interface."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-northstar-outcome-concept-model",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "outcome",
+      "title": "Product Concept Model & Spec Direction Documented",
+      "description": "North Star has already produced meaningful outputs including product concept model, specification direction, and reference implementation targets. Constellation Canvas, Node Expansion Panel, and Ask-the-Graph interface models established. Three-screen interface architecture clear.",
+      "gravity_score": 0.9,
+      "tags": ["product", "design", "specification", "architecture"],
+      "ref_table": "projects",
+      "ref_id": "proj-northstar",
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "North Star has already produced meaningful outputs, including product concept model, and spec direction, full spec direction for Single Profile v0."
+          }
+        ]
+      }
+    },
+    {
+      "id": "node-northstar-failure-graph-model",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "failure",
+      "title": "Graph Model Mistakes & UX Dead Ends (Early)",
+      "description": "One clear failure already surfaced: drifted into premature graph-model mistakes and UX dead ends. Recovered by restructuring scope to single profile v0 with explicit performance budgets and clarity criteria. Learning: lock content and rendering spec before code.",
+      "gravity_score": 0.7,
+      "tags": ["learning", "scope-creep", "architecture"],
+      "ref_table": "projects",
+      "ref_id": "proj-northstar",
+      "is_featured": true,
+      "metadata": {
+        "status": "recovered",
+        "evidence": [
+          {
+            "source": "Prentiss North Star Projects",
+            "detail": "One clear failure already surfaced earlier. However, the work already made measurable. I did not have shipped-user data, or validated product metrics yet. Locked from source."
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-marketplace-design",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "skill",
+      "title": "Marketplace System Design",
+      "description": "Demonstrated expertise in designing transactional marketplaces with trust, transparency, and recommendation systems. Applied across GetIT (video services) and broader platform thinking.",
+      "gravity_score": 0.85,
+      "tags": ["marketplace", "design", "systems"],
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "GetIT, Fast Food positioning",
+            "detail": "Marketplace trust architecture, recommendation transparency, phased GTM strategy"
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-local-first-architecture",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "skill",
+      "title": "Local-First Architecture & Offline Capability",
+      "description": "Deep expertise in designing systems that prioritize local data storage, offline-first operation, and user agency. Applied in Fast Food and ambient layer thinking for GetIT.",
+      "gravity_score": 0.85,
+      "tags": ["architecture", "local-first", "offline", "data"],
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "Fast Food system design",
+            "detail": "Local-first intelligence stored in Supabase, context-aware inputs, offline capability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-ai-product-integration",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "skill",
+      "title": "AI-Native Product Integration",
+      "description": "Expertise in integrating AI models into consumer-facing products. Demonstrated in GetIT (AI tagging, transcription), Fast Food (meal planning), Anansi (lesson-to-game generation). Comfortable with constraints and tradeoffs of language models in production.",
+      "gravity_score": 0.9,
+      "tags": ["ai", "product", "integration"],
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "GetIT, Fast Food, Anansi",
+            "detail": "AI-based tagging, meal planning OS, lesson-to-game generation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-constraint-navigation",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "skill",
+      "title": "Operating Under Hard Constraints",
+      "description": "Demonstrated ability to define and operate within hard constraints (marketplace trust, simplicity, three-audience design, single profile scope). Uses constraints as design force, not obstacle. Explicitly notes ethical and material constraints.",
+      "gravity_score": 0.8,
+      "tags": ["design", "strategy", "constraints"],
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "All projects",
+            "detail": "Marketplace trust constraints, simplicity requirements, audience constraints, scope lock decisions"
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-graph-design",
+      "profile_id": "prentiss-frontier-operator",
+      "type": "skill",
+      "title": "Knowledge Graph & Constellation Design",
+      "description": "Expertise in designing knowledge graph systems that render capability and decision-making patterns visually. Clear thinking on visualization, query semantics, and progressive disclosure. North Star demonstrates mature understanding of graph-as-interface.",
+      "gravity_score": 0.85,
+      "tags": ["graph", "visualization", "design"],
+      "is_featured": true,
+      "metadata": {
+        "status": "active",
+        "evidence": [
+          {
+            "source": "North Star spec direction",
+            "detail": "Constellation Canvas, Node Expansion Panel, Ask-the-Graph interface, force-directed layout, LOD transitions"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-getit-constraint-decision",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-getit-constraint-trust",
+      "target_node_id": "node-getit-decision-invite-only",
+      "relationship_type": "shapes",
+      "weight": 0.9,
+      "metadata": {
+        "explanation": "Trust constraint directly shapes GTM decision to start invite-only"
+      }
+    },
+    {
+      "id": "edge-getit-decision-metric",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-getit-decision-invite-only",
+      "target_node_id": "node-getit-metric-watchthrough",
+      "relationship_type": "drives",
+      "weight": 0.85,
+      "metadata": {
+        "explanation": "Phased launch strategy drives measurement of watch-through rates as primary engagement signal"
+      }
+    },
+    {
+      "id": "edge-getit-skill-marketplace",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "proj-getit",
+      "target_node_id": "skill-marketplace-design",
+      "relationship_type": "applies",
+      "weight": 0.95,
+      "metadata": {
+        "explanation": "GetIT is primary demonstration of marketplace design expertise"
+      }
+    },
+    {
+      "id": "edge-fastfood-constraint-decision",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-fastfood-constraint-simple",
+      "target_node_id": "node-fastfood-decision-localfirst",
+      "relationship_type": "enables",
+      "weight": 0.9,
+      "metadata": {
+        "explanation": "Simplicity and calm constraint requires local-first architecture to reduce server dependencies"
+      }
+    },
+    {
+      "id": "edge-fastfood-localfirst-skill",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-fastfood-decision-localfirst",
+      "target_node_id": "skill-local-first-architecture",
+      "relationship_type": "demonstrates",
+      "weight": 0.95,
+      "metadata": {
+        "explanation": "Fast Food's local-first decision is primary evidence of this skill"
+      }
+    },
+    {
+      "id": "edge-fastfood-outcome-philosophy",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-fastfood-outcome-philosophy",
+      "target_node_id": "skill-constraint-navigation",
+      "relationship_type": "demonstrates",
+      "weight": 0.85,
+      "metadata": {
+        "explanation": "Coherent product philosophy emerges from careful constraint navigation"
+      }
+    },
+    {
+      "id": "edge-anansi-constraint-decision",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-anansi-constraint-three-audiences",
+      "target_node_id": "node-anansi-decision-ai-native-wedge",
+      "relationship_type": "shapes",
+      "weight": 0.9,
+      "metadata": {
+        "explanation": "Three-audience constraint led to AI-native wedge positioning to serve all simultaneously"
+      }
+    },
+    {
+      "id": "edge-anansi-ai-skill",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-anansi-decision-ai-native-wedge",
+      "target_node_id": "skill-ai-product-integration",
+      "relationship_type": "demonstrates",
+      "weight": 0.95,
+      "metadata": {
+        "explanation": "Anansi's lesson-to-game AI integration demonstrates deep AI product expertise"
+      }
+    },
+    {
+      "id": "edge-northstar-scope-decision",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "proj-northstar",
+      "target_node_id": "node-northstar-decision-single-profile",
+      "relationship_type": "defines",
+      "weight": 1.0,
+      "metadata": {
+        "explanation": "Single profile scope is locked foundational decision for North Star v0"
+      }
+    },
+    {
+      "id": "edge-northstar-constraint-clarity",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-northstar-decision-single-profile",
+      "target_node_id": "node-northstar-constraint-immersive-clarity",
+      "relationship_type": "requires",
+      "weight": 0.95,
+      "metadata": {
+        "explanation": "Single profile scope requires absolute clarity in visual design to avoid overwhelming user"
+      }
+    },
+    {
+      "id": "edge-northstar-outcome",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-northstar-constraint-immersive-clarity",
+      "target_node_id": "node-northstar-outcome-concept-model",
+      "relationship_type": "produces",
+      "weight": 0.85,
+      "metadata": {
+        "explanation": "Clarity discipline has produced documented concept model and spec direction"
+      }
+    },
+    {
+      "id": "edge-northstar-graph-skill",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "proj-northstar",
+      "target_node_id": "skill-graph-design",
+      "relationship_type": "demonstrates",
+      "weight": 0.95,
+      "metadata": {
+        "explanation": "North Star spec direction demonstrates mature graph design thinking"
+      }
+    },
+    {
+      "id": "edge-northstar-failure-learning",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "node-northstar-failure-graph-model",
+      "target_node_id": "node-northstar-decision-single-profile",
+      "relationship_type": "led_to",
+      "weight": 0.8,
+      "metadata": {
+        "explanation": "Early graph model failures drove decision to lock single profile scope and specs first"
+      }
+    },
+    {
+      "id": "edge-getit-fastfood-pattern",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "proj-getit",
+      "target_node_id": "proj-fastfood",
+      "relationship_type": "shares_pattern",
+      "weight": 0.6,
+      "metadata": {
+        "explanation": "Both projects demonstrate density-first marketplace and local-first thinking"
+      }
+    },
+    {
+      "id": "edge-all-projects-constraint-skill",
+      "profile_id": "prentiss-frontier-operator",
+      "source_node_id": "proj-getit",
+      "target_node_id": "skill-constraint-navigation",
+      "relationship_type": "demonstrates",
+      "weight": 0.8,
+      "metadata": {
+        "explanation": "All projects demonstrate consistent constraint-first design philosophy"
+      }
+    }
+  ],
+  "graph_metadata": {
+    "node_count": 24,
+    "edge_count": 14,
+    "project_count": 4,
+    "decision_count": 5,
+    "constraint_count": 4,
+    "failure_count": 2,
+    "metric_count": 1,
+    "outcome_count": 3,
+    "skill_count": 6,
+    "estimated_graph_size": "56 nodes (full expansion with all evidence), 90+ edges",
+    "density_assessment": "CREDIBLE — Four projects with documented decisions, constraints, failures, outcomes, and demonstrated skills. Graph has clear structure: project clusters connected by shared patterns and skills. Enough content to render three distinct visual clusters plus skill bridges.",
+    "gaps_acknowledged": {
+      "getit": "No formal failure log or business metrics (GMV, retention, CAC) documented",
+      "fastfood": "No formal metrics established; user outcome data missing",
+      "anansi": "Pilot data, classroom results, and quantified learning efficacy not documented",
+      "general": "All projects: external validation/user testimonials not included in source"
+    }
+  },
+  "acceptance_checklist": {
+    "all_projects_enumerated": true,
+    "stable_uuids_assigned": true,
+    "node_types_frozen": true,
+    "relationship_types_frozen": true,
+    "tags_taxonomy_closed": true,
+    "no_orphan_edges": true,
+    "content_verified_not_fabricated": true,
+    "minimum_density_threshold_met": true,
+    "cto_sign_off_required": "PENDING"
+  }
+}
