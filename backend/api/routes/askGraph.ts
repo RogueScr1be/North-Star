@@ -1,7 +1,7 @@
 /**
  * ASK_GRAPH.TS
- * Natural language query endpoint with OpenAI API synthesis
- * Phase 7.1: OpenAI API integration with model routing (gpt-5.4-mini / gpt-5.4)
+ * Natural language query endpoint with OpenAI Responses API synthesis
+ * Phase 7.1: OpenAI Responses API integration with model routing (gpt-5.4-mini / gpt-5.4)
  */
 
 import { Router, Request, Response } from 'express';
@@ -220,7 +220,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Model routing: escalate complex queries to gpt-5.4, use gpt-5.4-mini by default
     const shouldEscalate = /between|relationship|all projects|across|connect|relate|integration|dependency|flow|architecture|holistic|overall|should|recommend|strategy|best|next|priority|roadmap|approach|plan|synthesis|summary|overview/i.test(question);
-    const model = shouldEscalate ? 'gpt-5.4' : 'gpt-5.4-mini';
+    const model = shouldEscalate ? 'gpt-5.4-2026-03-05' : 'gpt-5.4-mini-2026-03-17';
 
     // Fetch graph data if not provided
     const graph = clientGraph || (await fetchGraphData());
@@ -231,28 +231,41 @@ router.post('/', async (req: Request, res: Response) => {
     console.log(`[AskGraph] Question: "${question}"`);
     console.log(`[AskGraph] Model: ${model} (escalated: ${shouldEscalate})`);
 
-    // Call OpenAI API with graph context + question
-    const response = await openai.chat.completions.create({
-      model: model,
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'system',
-          content: `You are an expert analyst of knowledge graphs. You answer questions about a specific knowledge graph provided below. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
-        },
-        {
-          role: 'user',
-          content: `${graphContext}
+    // Call OpenAI Chat Completions API with graph context + question using direct HTTP call
+    const responsesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model,
+        max_completion_tokens: 1024,
+        system: `You are an expert analyst of knowledge graphs. You answer questions about a specific knowledge graph provided below. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
+        messages: [
+          {
+            role: 'user',
+            content: `${graphContext}
 
 User Question: ${question}
 
 Please answer the question based on the knowledge graph provided above. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
-        },
-      ],
+          },
+        ],
+      }),
     });
 
-    // Extract answer text from OpenAI API response
-    const answerText = response.choices[0]?.message?.content?.trim();
+    if (!responsesResponse.ok) {
+      const errorData = await responsesResponse.json();
+      throw new Error(`OpenAI API error: ${responsesResponse.status} ${JSON.stringify(errorData)}`);
+    }
+
+    const response = (await responsesResponse.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    // Extract answer text from OpenAI Chat Completions response
+    const answerText = response.choices?.[0]?.message?.content?.trim();
 
     if (!answerText) {
       return res.status(500).json({
