@@ -241,8 +241,11 @@ router.post('/', async (req: Request, res: Response) => {
       body: JSON.stringify({
         model: model,
         max_completion_tokens: 1024,
-        system: `You are an expert analyst of knowledge graphs. You answer questions about a specific knowledge graph provided below. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
         messages: [
+          {
+            role: 'system',
+            content: `You are an expert analyst of knowledge graphs. You answer questions about a specific knowledge graph provided below. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
+          },
           {
             role: 'user',
             content: `${graphContext}
