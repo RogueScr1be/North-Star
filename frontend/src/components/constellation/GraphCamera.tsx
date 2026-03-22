@@ -25,15 +25,6 @@ export function GraphCamera({ params }: GraphCameraProps) {
   const { camera } = useThree();
 
   useEffect(() => {
-    // TEST 2 DEBUG: Log camera params to console
-    console.log('[GraphCamera] Camera params: position=' + JSON.stringify(params.position) +
-                ' left=' + params.left.toFixed(2) +
-                ' right=' + params.right.toFixed(2) +
-                ' top=' + params.top.toFixed(2) +
-                ' bottom=' + params.bottom.toFixed(2) +
-                ' near=' + params.near.toFixed(2) +
-                ' far=' + params.far.toFixed(2));
-
     if (cameraRef.current) {
       // Set initial camera position and orientation
       (camera as any).position.set(...params.position);

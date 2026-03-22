@@ -154,7 +154,5 @@ export function logGraphDiagnostics(graph: RenderableGraph): void {
       `[Graph] ${graph.unresolved_edges.length} unresolved edges:`,
       graph.unresolved_edges
     );
-  } else {
-    console.log(`[Graph] All ${graph.edges.length} edges resolved`);
   }
 }

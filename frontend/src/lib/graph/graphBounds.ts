@@ -146,16 +146,7 @@ export function computeCameraParams(
   // The near plane must be BEFORE the minimum Z of the geometry
   // For safety, place near plane at (center.z - size.z) to include all geometry
   const geometryMinZ = center[2] - (size[2] / 2);
-  const geometryMaxZ = center[2] + (size[2] / 2);
   const cameraToGeometryDistance = position[2] - geometryMinZ;
-
-  // TEST 3 DEBUG: Log bounds for debugging
-  console.log('[computeCameraParams] Bounds: center.z=' + center[2].toFixed(2) +
-              ' size.z=' + size[2].toFixed(2) +
-              ' geometryMinZ=' + geometryMinZ.toFixed(2) +
-              ' geometryMaxZ=' + geometryMaxZ.toFixed(2) +
-              ' camera.z=' + position[2].toFixed(2) +
-              ' distance=' + cameraToGeometryDistance.toFixed(2));
 
   const near = Math.max(0.1, cameraToGeometryDistance * 0.5); // Buffer before geometry
   const far = cameraToGeometryDistance * 2; // Buffer after geometry

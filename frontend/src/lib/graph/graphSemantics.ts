@@ -246,10 +246,6 @@ export function computeSemanticVisibility(
   edges: GraphEdge[],
   filters: SemanticFilters
 ): SemanticVisibility {
-  // DEBUG: Trace project visibility computation
-  console.log('[SemanticVisibility] Input graph has', graph.projects.length, 'projects:', graph.projects.map(p => ({ id: p.id, title: p.title })));
-  console.log('[SemanticVisibility] Input filters:', { subgraphNodeId: filters.subgraphNodeId, projectClusterId: filters.projectClusterId, enabledNodeTypes: filters.enabledNodeTypes.size, enabledTags: filters.enabledTags.size });
-  
   let visibleNodeIds = new Set<string>();
   let visibleProjectIds = new Set<string>();
   let reason: SemanticVisibility['reason'] = 'all';
@@ -294,12 +290,10 @@ export function computeSemanticVisibility(
     }
 
     reason = 'all';
-    console.log('[SemanticVisibility] "all" mode: added', visibleProjectIds.size, 'projects:', Array.from(visibleProjectIds));
   }
 
   // Apply type/tag filtering (refines visible set)
   if (filters.enabledNodeTypes.size > 0 || filters.enabledTags.size > 0) {
-    console.log('[SemanticVisibility] Before type/tag filtering: visibleProjectIds =', Array.from(visibleProjectIds), '(size:', visibleProjectIds.size, ')');
     const attributeFiltered = filterNodesByAttributes(
       graph,
       filters.enabledNodeTypes,
@@ -311,7 +305,6 @@ export function computeSemanticVisibility(
     );
 
     reason = 'filtered';
-    console.log('[SemanticVisibility] After type/tag filtering: visibleProjectIds =', Array.from(visibleProjectIds), '(size:', visibleProjectIds.size, ')');
   }
 
   // Compute visible edges
@@ -323,14 +316,6 @@ export function computeSemanticVisibility(
     filters.edgeGravityThreshold,
     filters.enabledRelationshipTypes
   );
-
-  console.log('[SemanticVisibility] Final result:', {
-    reason,
-    visibleNodes: visibleNodeIds.size,
-    visibleProjects: visibleProjectIds.size,
-    projectIds: Array.from(visibleProjectIds),
-    visibleEdges: visibleEdgeIds.size
-  });
 
   return {
     visibleNodeIds,

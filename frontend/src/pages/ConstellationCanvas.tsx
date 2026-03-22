@@ -52,8 +52,8 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Phase 6.0: Layout engine mode (Curated API vs Dynamic D3)
   // Phase 6.2B: Force 'api' mode if D3 is disabled via env var
-  // Phase 6.2.5: Default to 'd3' when enabled, 'api' as fallback
-  const [layoutEngine, setLayoutEngine] = useState<'api' | 'd3'>(isD3Enabled ? 'd3' : 'api');
+  // Phase 8.0A: Default to 'api' (Curated) always; D3 remains opt-in experimental
+  const [layoutEngine, setLayoutEngine] = useState<'api' | 'd3'>('api');
 
   // Transform data to renderable format
   const renderableGraph = React.useMemo(() => {
@@ -149,7 +149,6 @@ export const ConstellationCanvas: React.FC = () => {
   const handleLayoutModeChange = React.useCallback((newMode: 'api' | 'd3') => {
     // Prevent switching to D3 if disabled by env var
     if (newMode === 'd3' && !isD3Enabled) {
-      console.warn('[ConstellationCanvas] D3 Dynamic layout is disabled (VITE_LAYOUT_ENGINE_ENABLED !== true)');
       return;
     }
     const visibleNodes = semanticVisibility?.visibleNodeIds.size ?? 0;
@@ -192,9 +191,12 @@ export const ConstellationCanvas: React.FC = () => {
 
     if (selectedItem?.type === 'node') {
       // Auto-set subgraph mode when selecting a node (1 hop default)
-      setSubgraphNode(selectedItem.data.id, 1);
+      // BUT: Don't override project-cluster mode — respect user's intentional filter
+      if (!semanticFilters.projectClusterId) {
+        setSubgraphNode(selectedItem.data.id, 1);
+      }
     }
-  }, [selectedItem?.data.id, selectedItem?.type, setSubgraphNode]);
+  }, [selectedItem?.data.id, selectedItem?.type, setSubgraphNode, semanticFilters.projectClusterId]);
 
   // Compute highlight state for selected item (Phase 2.4)
   const highlightState = React.useMemo(() => {

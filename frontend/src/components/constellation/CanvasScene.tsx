@@ -72,11 +72,8 @@ function NodesPoints({
 
   // FIX: Return null if no visible nodes (prevents uniform binding error)
   if (visibleNodes.length === 0) {
-    console.log('[NodesPoints] No visible nodes, returning null');
     return null;
   }
-
-  console.log('[NodesPoints] Rendering ' + visibleNodes.length + ' visible nodes');
 
   // Create position array for visible nodes (Phase 6.0: branch by layoutEngine)
   const positions = useMemo(() => {
@@ -192,11 +189,9 @@ function ProjectsPoints({
   // Filter projects by semantic visibility
   const visibleProjects = useMemo(() => {
     if (!semanticVisibility) {
-      console.log('[ProjectsPoints] No semantic visibility - showing all', graph.projects.length, 'projects:', graph.projects.map(p => p.id));
       return graph.projects;
     }
     const filtered = graph.projects.filter(proj => semanticVisibility.visibleProjectIds.has(proj.id));
-    console.log('[ProjectsPoints] Filtered projects: input=', graph.projects.length, 'visibleIds.size=', semanticVisibility.visibleProjectIds.size, 'output=', filtered.length, 'ids=', filtered.map(p => p.id), 'visibleIds=', Array.from(semanticVisibility.visibleProjectIds));
     return filtered;
   }, [graph.projects, semanticVisibility]);
 
@@ -283,26 +278,7 @@ function ProjectsPoints({
   useEffect(() => {
     if (visibleProjects.length === 0) return;
     
-    console.log('[ProjectsPoints] Buffer diagnostic:');
-    console.log('[ProjectsPoints] - Total visible projects:', visibleProjects.length);
-    console.log('[ProjectsPoints] - Positions array length:', positions.length, '(expect', visibleProjects.length * 3, ')');
-    console.log('[ProjectsPoints] - Colors array length:', colors.length, '(expect', visibleProjects.length * 4, ')');
-    console.log('[ProjectsPoints] - Sizes array length:', sizes.length, '(expect', visibleProjects.length, ')');
-    
-    // Sample first 3 positions (9 values)
-    const posSamples = Array.from(positions.slice(0, Math.min(9, positions.length)));
-    console.log('[ProjectsPoints] - Position samples (first 3 projects, 9 vals):', posSamples, 'has NaN:', posSamples.some(v => isNaN(v)), 'has Infinity:', posSamples.some(v => !isFinite(v)));
-    
-    // Sample first 3 colors (12 values)
-    const colSamples = Array.from(colors.slice(0, Math.min(12, colors.length)));
-    console.log('[ProjectsPoints] - Color samples (first 3 projects, 12 vals):', colSamples, 'has NaN:', colSamples.some(v => isNaN(v)), 'has Infinity:', colSamples.some(v => !isFinite(v)));
-    
-    // Sample first 3 sizes (3 values)
-    const sizeSamples = Array.from(sizes.slice(0, Math.min(3, sizes.length)));
-    console.log('[ProjectsPoints] - Size samples (first 3 projects, 3 vals):', sizeSamples, 'has NaN:', sizeSamples.some(v => isNaN(v)), 'has Infinity:', sizeSamples.some(v => !isFinite(v)));
-    
-    // Log all project IDs to verify they match
-    console.log('[ProjectsPoints] - Project IDs:', visibleProjects.map(p => p.id));
+    // Buffer diagnostics removed (production cleanup 8.0A)
   }, [visibleProjects, positions, colors, sizes]);
 
   if (visibleProjects.length === 0) return null;
@@ -633,11 +609,9 @@ function PickableProjects({
   // Filter projects by semantic visibility
   const visibleProjects = useMemo(() => {
     if (!semanticVisibility) {
-      console.log('[PickableProjects] No semantic visibility - showing all', graph.projects.length, 'projects:', graph.projects.map(p => p.id));
       return graph.projects;
     }
     const filtered = graph.projects.filter(proj => semanticVisibility.visibleProjectIds.has(proj.id));
-    console.log('[PickableProjects] Filtered projects: input=', graph.projects.length, 'visibleIds.size=', semanticVisibility.visibleProjectIds.size, 'output=', filtered.length, 'ids=', filtered.map(p => p.id));
     return filtered;
   }, [graph.projects, semanticVisibility]);
 
@@ -715,14 +689,7 @@ function SceneContent({
     onUnresolvedEdgesChange?.(graph.unresolved_edges.length);
 
     if (typeof window !== 'undefined' && (window as any).__DEV__) {
-      if (graph.unresolved_edges.length > 0) {
-        console.warn(
-          `[CanvasScene] ${graph.unresolved_edges.length} unresolved edges:`,
-          graph.unresolved_edges
-        );
-      } else {
-        console.log(`[CanvasScene] All ${graph.edges.length} edges resolved`);
-      }
+      // Development diagnostics available if needed
     }
   }, [graph, onUnresolvedEdgesChange]);
 
