@@ -1,7 +1,7 @@
 /**
  * API.TS
  * Frontend API client wrapper for Phase 1 endpoints
- * Base URL: http://localhost:3001/api (configurable)
+ * Base URL: /api (root-relative, works via Vite proxy in dev and same-domain in prod)
  */
 
 import {
@@ -12,7 +12,8 @@ import {
   ErrorResponse,
 } from './types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+// Prefer explicit env var, otherwise use root-relative path (works in dev via Vite proxy and in prod on same domain)
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // ============================================================================
 // ERROR HANDLING

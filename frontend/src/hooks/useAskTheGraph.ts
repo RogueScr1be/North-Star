@@ -58,7 +58,8 @@ export function useAskTheGraph(
       // Call backend endpoint
       (async () => {
         try {
-          const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+          // Prefer explicit env var, otherwise use root-relative path (works in dev via Vite proxy and in prod on same domain)
+          const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
           const response = await fetch(`${API_BASE}/ask-graph`, {
             method: 'POST',
@@ -67,7 +68,17 @@ export function useAskTheGraph(
           });
 
           if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            // Try to extract real error message from backend response
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            try {
+              const errorBody = await response.json();
+              if (errorBody.error) {
+                errorMessage = errorBody.error;
+              }
+            } catch {
+              // If response body is not JSON, use HTTP status message
+            }
+            throw new Error(errorMessage);
           }
 
           const result = await response.json();
