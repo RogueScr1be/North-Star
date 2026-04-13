@@ -1,0 +1,75 @@
+/**
+ * DEMOCONTROLS.CSS
+ * Founder controls for demo narrative
+ * Phase 3.3: Project Focus Controls
+ * Minimal fixed positioning, cyan accent, dark theme
+ */
+
+.demo-controls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 850; /* Below SearchUI dropdown (900+), above canvas (50) */
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.demo-control-button {
+  background-color: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 255, 200, 0.3);
+  color: #cccccc;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.demo-control-button:hover:not(:disabled) {
+  border-color: rgba(0, 255, 200, 0.7);
+  color: #00ffc8;
+  background-color: rgba(0, 255, 200, 0.08);
+  box-shadow: 0 0 8px rgba(0, 255, 200, 0.2);
+}
+
+.demo-control-button:active:not(:disabled) {
+  background-color: rgba(0, 255, 200, 0.15);
+  box-shadow: 0 0 12px rgba(0, 255, 200, 0.3);
+}
+
+.demo-control-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.demo-control-button.demo-reset {
+  /* Reset button styling */
+}
+
+.demo-control-button.demo-project {
+  /* Project focus button styling */
+}
+
+.demo-control-button.demo-project-next {
+  /* Next project button styling */
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .demo-controls {
+    top: 60px; /* Below mobile search bar if present */
+    right: 10px;
+    gap: 6px;
+  }
+
+  .demo-control-button {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}

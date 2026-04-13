@@ -53,6 +53,8 @@ export function useAskTheGraph(
         return;
       }
 
+      // Step 5: Capture request submission time for render latency measurement
+      const requestSubmissionTime = Date.now();
       setState({ query, loading: true, answer: null, error: null });
 
       // Call backend endpoint
@@ -87,6 +89,9 @@ export function useAskTheGraph(
             throw new Error(result.error || 'Unknown error from backend');
           }
 
+          // Step 5: Calculate render latency (time from submit to response received)
+          const renderLatencyMs = Date.now() - requestSubmissionTime;
+
           // Transform backend response to Answer format
           const citedNodeIds = result.citedNodeIds || [];
           const citedProjectIds = result.citedProjectIds || [];
@@ -118,6 +123,8 @@ export function useAskTheGraph(
             citedNodes,
             citedProjects,
             explanation: 'OpenAI-synthesized answer based on graph context',
+            requestId: result.requestId, // Phase 7.1: Correlation with backend events
+            renderLatencyMs, // Step 5: Render latency for monitoring
           };
 
           setState({ query, loading: false, answer, error: null });

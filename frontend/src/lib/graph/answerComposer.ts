@@ -19,6 +19,8 @@ export interface Answer {
   citedNodes: GraphNode[];
   citedProjects: GraphProject[];
   explanation: string; // Why this answer, what was searched
+  requestId?: string; // Phase 7.1: Backend correlation ID for telemetry
+  renderLatencyMs?: number; // Step 5: Latency from user submit to response received (ms)
 }
 
 // ============================================================================

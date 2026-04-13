@@ -5480,3 +5480,81 @@ You can find your API key at https://platform.openai.com/account/api-keys.
 
 **Phase 7.1 Status:** Implementation complete and verified to work. Blocked only by invalid OpenAI API key (user action required). Code ready for production deployment.
 
+
+---
+
+## 🎨 PHASE 7.1: OPENAI ASK-THE-GRAPH INTEGRATION — VERIFIED COMPLETE ✅
+
+### Final Status: FULLY CLOSED ✅
+
+**Verification Date:** 2026-03-21 (3 test scenarios executed, all PASS)
+**Implementation Status:** Production-ready
+**Code Quality:** TypeScript 0 errors, builds successfully
+
+### Root Cause Correction (Previous Session Misconception)
+
+**Previous diagnosis:** "Invalid API key — OpenAI rejects with 401"
+
+**Actual status:** 
+- Previous session used PLACEHOLDER key (sk-proj-K2KchBody... abbreviated)
+- Current session: Valid OpenAI API key configured (sk-proj-Qcw1tp58... with gpt-5.4 access confirmed)
+- Evidence: All 3 end-to-end test scenarios succeed with substantive answers
+
+**Lesson:** Don't persist test/placeholder API keys in env files. Always rotate to live credentials before verifying.
+
+### Verification Matrix
+
+**Test 1: "What is North Star?" (Simple Definition)**
+- Model: gpt-5.4-mini (no escalation)
+- Response: ✅ 200 OK, answer + 7 cited nodes
+- Confidence: high
+- Quality: Accurate, grounded
+
+**Test 2: "How are GetIT and Fast Food related?" (Relationship Synthesis)**
+- Model: gpt-5.4 (escalated via "related" keyword)
+- Response: ✅ 200 OK, answer + 15 cited nodes + 2 projects
+- Confidence: high
+- Quality: Multi-hop synthesis, shows founder patterns across projects
+
+**Test 3: "xyzabc purple moon" (Insufficient Data)**
+- Model: gpt-5.4-mini (no escalation)
+- Response: ✅ 200 OK, graceful "no match" + suggestions
+- Confidence: high (accurate signal)
+- Quality: Helpful fallback with project alternatives
+
+### Architecture Verified
+
+1. **Model Routing:** Keyword detection for escalation (gpt-5.4-mini ↔ gpt-5.4) ✅
+2. **API Integration:** OpenAI Chat Completions API (v4.52.0 SDK) ✅
+3. **Citation Extraction:** Pattern matching on entity titles ✅
+4. **Response Format:** Identical to Phase 4.0 (zero frontend changes) ✅
+5. **Error Handling:** Graceful fallback for missing key / bad input ✅
+
+### Build & Stability
+
+- TypeScript: 0 errors, 0 warnings ✅
+- Backend: npm run build succeeds ✅
+- Frontend: npm run build succeeds ✅
+- Runtime: Backend port 3001, Frontend port 3000, both stable ✅
+- No regressions: All Phase 2.3–4.0 features intact ✅
+
+### Cost Efficiency
+
+- Default model: gpt-5.4-mini (cost baseline)
+- Escalation model: gpt-5.4 (~3× per query)
+- Strategy: Selective escalation for synthesis questions only
+- Projection: Conservative spend for single-founder MVP
+
+### Known Limitations (Deferred to Phase 8+)
+
+- Streaming responses (would improve UX for long answers)
+- Token usage tracking (analytics for optimization)
+- Fallback to Anthropic (only if OpenAI API becomes unreliable)
+- User-controlled escalation (manual override toggle)
+
+### Final Decision: ✅ FULL SHIP
+
+Phase 7.1 is complete, verified, and production-ready. All test scenarios pass. Model routing works correctly. Error handling is graceful. No regressions. Ready for Phase 8.0 (streaming, token tracking, response caching).
+
+**Phase 7.1 Status: CLOSED** 🚀
+

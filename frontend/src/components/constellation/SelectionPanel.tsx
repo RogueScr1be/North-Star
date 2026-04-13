@@ -4,15 +4,20 @@
  * Phase 2.3: Display live selected item data
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import * as THREE from 'three';
 import { SelectedItem } from '../../hooks/useSelection';
 import { GraphNode, GraphProject } from '../../lib/graph/graphTypes';
 import { togglePinItem, isItemPinned } from '../../lib/search/navigationUtils';
+import { computePanelPosition } from '../../lib/graph/highlighting';
 import './SelectionPanel.css';
 
 interface SelectionPanelProps {
   selectedItem: SelectedItem;
   onClose: () => void;
+  cameraRef?: React.MutableRefObject<THREE.OrthographicCamera | null>; // FIX (DEMO LOCK BUG #7): For 3D-to-2D projection
+  canvasWidth?: number; // Canvas width in pixels
+  canvasHeight?: number; // Canvas height in pixels
 }
 
 /**
@@ -123,9 +128,33 @@ function ProjectDetails({ project }: { project: GraphProject }) {
 
 /**
  * Main panel component
+ * FIX (DEMO LOCK BUG #7): Calculate floating position near selected item
  */
-export const SelectionPanel: React.FC<SelectionPanelProps> = ({ selectedItem, onClose }) => {
+export const SelectionPanel: React.FC<SelectionPanelProps> = ({ selectedItem, onClose, cameraRef, canvasWidth, canvasHeight }) => {
   const [isPinned, setIsPinned] = useState(false);
+  const [panelPosition, setPanelPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // FIX (DEMO LOCK BUG #7): Calculate panel position based on selected item's 3D coordinates
+  // Memoized computation to avoid expensive recalculation on every render
+  const memoizedPosition = useMemo(() => {
+    if (!selectedItem || !cameraRef?.current || !canvasWidth || !canvasHeight) {
+      return null;
+    }
+
+    // Get position from node (x, y, z) or project (x_derived, y_derived, z_derived)
+    const item = selectedItem.data;
+    const x = 'x' in item ? item.x : (item as any).x_derived || 0;
+    const y = 'y' in item ? item.y : (item as any).y_derived || 0;
+    const z = 'z' in item ? item.z : (item as any).z_derived || 0;
+
+    // Use pure function to compute position
+    return computePanelPosition(x, y, z, cameraRef.current, canvasWidth, canvasHeight);
+  }, [selectedItem, cameraRef, canvasWidth, canvasHeight]);
+
+  // Update state when memoized position changes
+  useEffect(() => {
+    setPanelPosition(memoizedPosition);
+  }, [memoizedPosition]);
 
   // Handle Escape key
   useEffect(() => {
@@ -163,7 +192,18 @@ export const SelectionPanel: React.FC<SelectionPanelProps> = ({ selectedItem, on
   const item = selectedItem.data;
 
   return (
-    <div className="selection-panel" role="complementary" aria-label="Selection details">
+    <div
+      className="selection-panel"
+      role="complementary"
+      aria-label="Selection details"
+      style={panelPosition ? {
+        position: 'fixed',
+        left: `${panelPosition.left}px`,
+        top: `${panelPosition.top}px`,
+        right: 'auto',
+        bottom: 'auto'
+      } : undefined}
+    >
       {/* Header with pin and close buttons */}
       <div className="selection-header">
         <h2 className="selection-title">{item.title}</h2>

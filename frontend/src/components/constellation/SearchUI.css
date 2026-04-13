@@ -11,6 +11,48 @@
   width: 320px;
 }
 
+.search-ui.demo-mode {
+  width: 48px;
+  height: 48px;
+}
+
+/* Demo mode dropdown width: break parent constraint, use readable width */
+.search-ui.demo-mode .search-results {
+  width: 320px;
+  left: 20px;
+  right: auto;
+}
+
+.search-icon-button {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border: 1px solid rgba(0, 255, 200, 0.3);
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+  color: rgba(0, 255, 200, 0.8);
+  outline: none;
+}
+
+.search-icon-button:hover {
+  border-color: rgba(0, 255, 200, 0.6);
+  background-color: rgba(0, 255, 200, 0.05);
+  color: rgba(0, 255, 200, 1);
+  box-shadow: 0 0 12px rgba(0, 255, 200, 0.2);
+}
+
+.search-icon-button:active {
+  transform: scale(0.95);
+  box-shadow: inset 0 0 8px rgba(0, 255, 200, 0.1);
+}
+
 .search-input-wrapper {
   position: relative;
   display: flex;
@@ -72,12 +114,15 @@
   border: 1px solid rgba(0, 255, 200, 0.2);
   border-radius: 6px;
   backdrop-filter: blur(10px);
-  max-height: 360px;
+  max-height: 320px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 255, 200, 0.1);
   animation: slideDown 0.15s ease-out;
+  /* Phase C: Ensure dropdown doesn't extend below AskTheGraphPanel area */
+  /* On 1366×768, AskTheGraphPanel trigger starts ~172px from top */
+  /* SearchUI input (~48px) + gap (8px) + 320px dropdown = ~428px, acceptable with proper panel layout */
 }
 
 /* Result groups */
@@ -332,6 +377,13 @@
     max-width: 320px;
   }
 
+  .search-results {
+    max-height: 240px;
+  }
+}
+
+/* Phase C: Ensure dropdown doesn't overflow on small demo sizes (1366×768) */
+@media (max-height: 900px) {
   .search-results {
     max-height: 280px;
   }

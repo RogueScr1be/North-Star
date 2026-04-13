@@ -4,6 +4,7 @@
  * Phase 2.4: Visual feedback for selected nodes/projects
  */
 
+import type * as THREE from 'three';
 import type { RenderableGraph } from './graphTransforms';
 import type { GraphEdge } from './graphTypes';
 
@@ -389,4 +390,54 @@ export function computeFinalEdgeOpacity(
     return 0.6;
   }
   return isConnected ? 0.8 : 0.35;
+}
+
+/**
+ * Compute panel position from 3D item position projected to 2D screen space
+ * Pure function: no side effects, fully testable
+ * @param x Item X position (3D world space)
+ * @param y Item Y position (3D world space)
+ * @param z Item Z position (3D world space)
+ * @param camera THREE.OrthographicCamera for projection
+ * @param canvasWidth Canvas width in pixels
+ * @param canvasHeight Canvas height in pixels
+ * @returns Screen position {top, left} or null if projection fails
+ */
+export function computePanelPosition(
+  x: number,
+  y: number,
+  z: number,
+  camera: THREE.OrthographicCamera | null | undefined,
+  canvasWidth: number,
+  canvasHeight: number
+): { top: number; left: number } | null {
+  // Validate inputs
+  if (!camera || !canvasWidth || !canvasHeight) {
+    return null;
+  }
+
+  try {
+    // Import THREE for Vector3
+    const THREE = require('three');
+    const itemPos = new THREE.Vector3(x, y, z);
+
+    // Project 3D coordinate to 2D screen space
+    itemPos.project(camera);
+
+    // Convert from normalized device coordinates [-1, 1] to screen pixels
+    const screenX = (itemPos.x * 0.5 + 0.5) * canvasWidth;
+    const screenY = (itemPos.y * -0.5 + 0.5) * canvasHeight; // Invert Y
+
+    // Offset panel to the right and up from the item
+    const offsetX = 30;
+    const offsetY = -100;
+
+    return {
+      left: screenX + offsetX,
+      top: screenY + offsetY,
+    };
+  } catch (e) {
+    // Fallback if projection fails
+    return null;
+  }
 }

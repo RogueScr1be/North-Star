@@ -106,11 +106,11 @@ export interface CameraParams {
 export function computeCameraParams(
   bounds: GraphBounds,
   viewportAspect: number,
-  paddingFraction = 0.05
+  paddingFraction = 0.15
 ): CameraParams {
   const { center, size } = bounds;
 
-  // Add padding to bounds
+  // Add generous padding to bounds (increased from 5% to 15%)
   const paddedSize = [
     size[0] * (1 + paddingFraction * 2),
     size[1] * (1 + paddingFraction * 2),
@@ -137,9 +137,9 @@ export function computeCameraParams(
   const top = center[1] + frustumHeight / 2;
   const bottom = center[1] - frustumHeight / 2;
 
-  // Position camera closer to see graph larger (1.3x instead of 2x)
-  // This makes the graph occupy more of the viewport
-  const distance = Math.max(size[0], size[1], size[2]) * 1.3;
+  // Position camera further back to ensure all 4 projects visible (increased from 1.3x to 2.0x)
+  // This accounts for the extreme Z-axis spread in the graph
+  const distance = Math.max(size[0], size[1], size[2]) * 2.0;
   const position: [number, number, number] = [center[0], center[1], center[2] + distance];
 
   // Near/far planes: must account for actual Z range of geometry
@@ -148,8 +148,9 @@ export function computeCameraParams(
   const geometryMinZ = center[2] - (size[2] / 2);
   const cameraToGeometryDistance = position[2] - geometryMinZ;
 
-  const near = Math.max(0.1, cameraToGeometryDistance * 0.5); // Buffer before geometry
-  const far = cameraToGeometryDistance * 2; // Buffer after geometry
+  // FIX (DEMO LOCK BUG #2): Increase near/far clipping planes to prevent angle-dependent disappearance
+  const near = Math.max(0.01, cameraToGeometryDistance * 0.1); // More generous near plane (was 0.3)
+  const far = cameraToGeometryDistance * 5; // More generous far plane (was 3x)
 
   return { left, right, top, bottom, near, far, position };
 }

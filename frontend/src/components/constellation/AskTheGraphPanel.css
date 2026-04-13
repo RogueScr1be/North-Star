@@ -22,6 +22,7 @@
   left: 20px;
   width: 420px;
   max-height: 75vh;
+  overflow: hidden;
   background: linear-gradient(135deg, rgba(15, 20, 30, 0.95) 0%, rgba(10, 15, 25, 0.98) 100%);
   border: 1px solid rgba(0, 255, 200, 0.15);
   border-radius: 12px;
@@ -167,6 +168,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+  /* Phase C: Ensure content scrolls properly within panel boundaries */
+  /* Don't let content exceed the panel height; rely on flex: 1 and overflow-y: auto */
 }
 
 /* Scrollbar styling */
@@ -258,8 +262,11 @@
 .ask-answer-text {
   margin: 0 0 8px 0;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
   color: rgba(255, 255, 255, 0.85);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  text-align: left;
 }
 
 .ask-explanation {
@@ -515,6 +522,14 @@
 
   .ask-graph-panel {
     bottom: 10px;
+  }
+}
+
+/* Phase C: Adjust panel heights on demo-size viewports (1366×768) */
+@media (max-height: 900px) {
+  .ask-graph-panel {
+    max-height: 60vh;
+    /* Reduce from 75vh to 60vh on small viewports to prevent overlap with SearchUI dropdown */
   }
 }
 

@@ -14,6 +14,7 @@ import { ProjectLedger } from './pages/ProjectLedger';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { NodeDetail } from './pages/NodeDetail';
 import { ConstellationCanvas } from './pages/ConstellationCanvas';
+import { Constellation3D } from './pages/Constellation3D';
 import { D3ConstellationCanvas } from './pages/D3ConstellationCanvas';
 import './App.css';
 
@@ -28,15 +29,21 @@ export const App: React.FC = () => {
     <BrowserRouter>
       <Suspense fallback={<div className="loading">Loading...</div>}>
         <Routes>
-          {/* Phase 2.2: Constellation Canvas (full screen, no Layout) */}
+          {/* FINAL LOCK MODE: Single-surface demo root → constellation */}
+          <Route path="/" element={<Navigate to="/constellation" replace />} />
+
+          {/* Phase 1: Constellation 3D (enhanced visuals variant, full screen, no Layout) */}
+          <Route path="/constellation-3d" element={<Constellation3D />} />
+
+          {/* Phase 2.2: Constellation Canvas (full screen, no Layout) — FALLBACK ROUTE */}
           <Route path="/constellation" element={<ConstellationCanvas />} />
 
-          {/* Phase 5.8: D3 Force Layout Spike (isolated experimental route) */}
+          {/* Phase 5.8: D3 Force Layout Spike (isolated experimental route) — FALLBACK ROUTE */}
           <Route path="/constellation/d3-spike" element={<D3ConstellationCanvas />} />
 
-          {/* Phase 1: Standard layout pages */}
+          {/* Phase 1: Standard layout pages — FALLBACK ROUTES (preserved for rollback safety) */}
           <Route
-            path="/*"
+            path="/legacy/*"
             element={
               <Layout>
                 <Routes>
@@ -44,11 +51,14 @@ export const App: React.FC = () => {
                   <Route path="/projects" element={<ProjectLedger />} />
                   <Route path="/projects/:projectId" element={<ProjectDetail />} />
                   <Route path="/nodes/:nodeId" element={<NodeDetail />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/constellation-3d" replace />} />
                 </Routes>
               </Layout>
             }
           />
+
+          {/* Catch-all: redirect unknown routes to constellation-3d */}
+          <Route path="*" element={<Navigate to="/constellation-3d" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { GraphResponse } from '../lib/graph/graphTypes';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 interface UseGraphDataState {
   data: GraphResponse | null;
@@ -117,6 +117,7 @@ function validateGraphResponse(payload: unknown): GraphResponse {
 /**
  * useGraphData
  * Fetches /api/graph and exposes state with validation
+ * Phase 8.0C: Added 5-second timeout to prevent hanging
  */
 export function useGraphData() {
   const [state, setState] = useState<UseGraphDataState>({
@@ -129,8 +130,15 @@ export function useGraphData() {
     let isMounted = true;
 
     async function fetch() {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
       try {
-        const res = await globalThis.fetch(`${API_BASE}/graph`);
+        const res = await globalThis.fetch(`${API_BASE}/graph`, {
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
           const errorPayload = await res.json();
@@ -150,11 +158,17 @@ export function useGraphData() {
           });
         }
       } catch (err) {
+        clearTimeout(timeoutId);
         if (isMounted) {
+          const errorMsg = err instanceof Error
+            ? err.message.includes('abort')
+              ? 'Graph fetch timed out after 5 seconds. Please check your connection and refresh.'
+              : err.message
+            : String(err);
           setState({
             data: null,
             loading: false,
-            error: err instanceof Error ? err : new Error(String(err)),
+            error: new Error(errorMsg),
           });
         }
       }

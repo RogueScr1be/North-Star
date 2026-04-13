@@ -10,6 +10,12 @@ import { GraphNode, GraphProject } from '../../lib/graph/graphTypes';
 import { useAskTheGraph } from '../../hooks/useAskTheGraph';
 import { generateFollowUps, FollowUpSuggestion }from '../../lib/graph/followUpQuestions';
 import { logAnswerContextEntered, logAnswerContextExited } from '../../lib/analytics/constellationAnalytics';
+import {
+  logAskGraphResponseRendered,
+  logAskGraphEvidenceClicked,
+  logAskGraphPanelClosed,
+  logAskGraphFrontendError,
+} from '../../lib/frontend-telemetry';
 import './AskTheGraphPanel.css';
 
 // ============================================================================
@@ -159,6 +165,10 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
   const previousAnswerRef = useRef<any>(null);
   const evidenceClickCountRef = useRef<number>(0);
 
+  // Step 5: Frontend telemetry tracking
+  const panelOpenTimeRef = useRef<number | null>(null);
+  const currentRequestIdRef = useRef<string>('');
+
   // Load recent queries on mount
   useEffect(() => {
     setRecentQueries(getRecentQueries());
@@ -194,6 +204,9 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
    * Handle focus
    */
   const handleFocus = () => {
+    if (!panelOpenTimeRef.current) {
+      panelOpenTimeRef.current = Date.now(); // Step 5: Track panel open time
+    }
     setIsOpen(true);
   };
 
@@ -201,9 +214,26 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
    * Handle close
    */
   const handleClose = () => {
+    // Step 5: Emit panel closed event (always-fired when user closes)
+    if (currentRequestIdRef.current && panelOpenTimeRef.current) {
+      try {
+        const panelOpenDurationMs = Date.now() - panelOpenTimeRef.current;
+        const evidenceClicked = evidenceClickCountRef.current > 0;
+        logAskGraphPanelClosed(
+          currentRequestIdRef.current,
+          panelOpenDurationMs,
+          evidenceClicked
+        );
+      } catch (err) {
+        console.error('[AskTheGraphPanel] Panel close telemetry error:', err);
+      }
+    }
+
     setIsOpen(false);
     clear();
     setInputValue('');
+    panelOpenTimeRef.current = null; // Reset for next session
+    currentRequestIdRef.current = '';
   };
 
   /**
@@ -217,6 +247,22 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
     // Phase 5.9: Track evidence click within answer session
     if (answerSessionStartTimeRef.current) {
       evidenceClickCountRef.current += 1;
+    }
+
+    // Step 5: Emit evidence clicked event (conditional, only if answer exists)
+    if (currentRequestIdRef.current && answer) {
+      try {
+        const totalCitations = answer.citedNodes.length + answer.citedProjects.length;
+        logAskGraphEvidenceClicked(
+          currentRequestIdRef.current,
+          item.id,
+          itemType,
+          index,
+          totalCitations
+        );
+      } catch (err) {
+        console.error('[AskTheGraphPanel] Evidence click telemetry error:', err);
+      }
     }
 
     logEvidenceClick(item.id, itemType, index);
@@ -257,12 +303,44 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
     askGraph(query);
   };
 
+  // Step 5: Emit error event on error (conditional, only if error exists)
+  useEffect(() => {
+    if (error && currentRequestIdRef.current) {
+      try {
+        logAskGraphFrontendError(
+          currentRequestIdRef.current,
+          error,
+          'response_error'
+        );
+      } catch (err) {
+        console.error('[AskTheGraphPanel] Error telemetry error:', err);
+      }
+    }
+  }, [error]);
+
   // Phase 5.9: Track answer context lifecycle for analytics
   useEffect(() => {
     // Check if answer entered context (success answer)
     if (answer?.type === 'success' && !answerSessionStartTimeRef.current) {
       answerSessionStartTimeRef.current = Date.now();
       evidenceClickCountRef.current = 0;
+
+      // Step 5: Emit response rendered event (always-fired for success answers)
+      if (answer.requestId && answer.renderLatencyMs !== undefined) {
+        try {
+          logAskGraphResponseRendered(
+            answer.requestId,
+            answer.renderLatencyMs,
+            answer.citedNodes.length,
+            answer.citedProjects.length,
+            answer.confidence
+          );
+          currentRequestIdRef.current = answer.requestId;
+        } catch (err) {
+          console.error('[AskTheGraphPanel] Telemetry error:', err);
+        }
+      }
+
       logAnswerContextEntered(
         answer.type,
         answer.confidence,
@@ -305,12 +383,12 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
         <form onSubmit={handleSubmit} className="ask-graph-input-wrapper">
           <input
             type="text"
-            placeholder="Ask about the graph..."
+            placeholder="Ask a Question"
             value={inputValue}
             onChange={handleInputChange}
             onFocus={handleFocus}
             className="ask-graph-input-compact"
-            aria-label="Ask a question about the graph"
+            aria-label="Ask a Question"
           />
           {inputValue.trim() && <button type="submit" className="ask-submit-button">Ask</button>}
         </form>
@@ -322,8 +400,8 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
     <div className="ask-graph-panel">
       {/* Header */}
       <div className="ask-header">
-        <h3>Ask the Graph</h3>
-        <button className="ask-close-button" onClick={handleClose} aria-label="Close Ask-the-Graph">
+        <h3>Explore</h3>
+        <button className="ask-close-button" onClick={handleClose} aria-label="Close exploration panel">
           ✕
         </button>
       </div>
@@ -332,12 +410,12 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
       <form onSubmit={handleSubmit} className="ask-graph-input-wrapper-expanded">
         <input
           type="text"
-          placeholder="Ask about the graph..."
+          placeholder="Ask a Question"
           value={inputValue}
           onChange={handleInputChange}
           onFocus={handleFocus}
           className="ask-graph-input-expanded"
-          aria-label="Ask a question about the graph"
+          aria-label="Ask a Question"
         />
         {inputValue.trim() && <button type="submit" className="ask-submit-button">Ask</button>}
       </form>

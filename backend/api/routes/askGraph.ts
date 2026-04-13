@@ -7,6 +7,7 @@
 import { Router, Request, Response } from 'express';
 import OpenAI from 'openai';
 import { supabase } from '../config';
+import { randomUUID } from 'crypto';
 
 const router = Router();
 
@@ -49,6 +50,7 @@ interface AskGraphResponse {
   citedNodeIds: string[];
   citedProjectIds: string[];
   confidence: 'high' | 'medium' | 'low';
+  requestId?: string; // Phase 7.1: Frontend telemetry correlation
   error?: string;
 }
 
@@ -196,6 +198,11 @@ ${relationshipsSummary}
  * OpenAI model synthesizes an answer based on graph context
  */
 router.post('/', async (req: Request, res: Response) => {
+  // Telemetry: Initialize request correlation IDs (available to both try and catch)
+  const requestId = randomUUID();
+  const sessionId = req.headers['x-session-id'] as string | undefined;
+  const startTime = Date.now();
+
   try {
     const { question, graph: clientGraph } = req.body as AskGraphRequest;
 
@@ -213,6 +220,7 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
+
     // Lazy-initialize OpenAI client (required because SDK throws at init time if key missing)
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -228,7 +236,8 @@ router.post('/', async (req: Request, res: Response) => {
     // Format graph as context
     const graphContext = formatGraphContext(graph);
 
-    console.log(`[AskGraph] Question: "${question}"`);
+    const sanitizedQuestion = question.length > 100 ? question.substring(0, 100) + '...' : question;
+    console.log(`[AskGraph] Question: ${sanitizedQuestion}`);
     console.log(`[AskGraph] Model: ${model} (escalated: ${shouldEscalate})`);
 
     // Call OpenAI Chat Completions API with graph context + question using direct HTTP call
@@ -287,12 +296,17 @@ Please answer the question based on the knowledge graph provided above. Always g
 
     console.log(`[AskGraph] Citations: ${citedCount} entities (${nodeIds.length} nodes, ${projectIds.length} projects)`);
 
+    // Classify no-answer scenario based on retrieval metrics
+    const retrievedNodeCount = graph.nodes.length;
+    const retrievedEdgeCount = graph.edges.length;
+
     return res.json({
       success: true,
       answer: answerText,
       citedNodeIds: nodeIds,
       citedProjectIds: projectIds,
       confidence,
+      requestId, // Phase 7.1: Expose requestId for frontend telemetry correlation
     } as AskGraphResponse);
   } catch (error) {
     console.error('[AskGraph] Error:', error);

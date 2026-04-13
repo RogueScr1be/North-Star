@@ -18,8 +18,6 @@ import {
   ResultGroup,
 } from '../../lib/search/searchUtils';
 import { getPinnedItems, getRecentItems, NavigationItem } from '../../lib/search/navigationUtils';
-import { parseQuery, formatIntentMessage, ParsedQuery } from '../../lib/search/queryParser';
-import { deriveIntentPattern } from '../../lib/search/searchIntentHelper';
 import { logSearchEvent, SearchExecutedEvent, SearchResultSelectedEvent } from '../../lib/analytics/searchAnalytics';
 import { logNodeSelected, logProjectSelected } from '../../lib/analytics/constellationAnalytics';
 import { sanitizeSearchQuery } from '../../lib/analytics/queryRedaction';
@@ -30,6 +28,8 @@ interface SearchUIProps {
   projects: GraphProject[];
   onNodeSelect: (node: GraphNode) => void;
   onProjectSelect: (project: GraphProject) => void;
+  demoMode?: boolean;
+  onSearchResultHover?: (resultId: string | null) => void;
 }
 
 export interface SearchUIHandle {
@@ -42,6 +42,8 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
     projects,
     onNodeSelect,
     onProjectSelect,
+    demoMode,
+    onSearchResultHover,
   },
   ref
 ) => {
@@ -53,14 +55,12 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
   const [showRecents, setShowRecents] = useState(false);
   const [pinnedItems, setPinnedItems] = useState<NavigationItem[]>([]);
   const [recentItems, setRecentItems] = useState<NavigationItem[]>([]);
-  const [intentMessage, setIntentMessage] = useState<string | null>(null);
   const resultRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Track current search session for analytics (Phase 3.6)
   const searchSessionRef = useRef<{
     rawQuery: string;
-    parsed: ParsedQuery;
     resultCount: number;
     openedAt: number;
     selectedInSession: boolean;
@@ -73,9 +73,17 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
   // Expose focus method to parent via forwardRef
   useImperativeHandle(ref, () => ({
     focus: () => {
-      inputRef.current?.focus();
+      if (!inputRef.current) return;
+      inputRef.current.focus();
     },
   }), []);
+
+  // Safety net: auto-focus input when isOpen changes to true
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
 
   // Group results for structured display, preserving ranking within each group
   const groupedResults = useMemo<ResultGroup[]>(() => {
@@ -92,7 +100,7 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
     setRecentSearches(getRecentSearches());
   }, []);
 
-  // Search on query change (Phase 3.5: parse query for NL intent)
+  // Search on query change
   // Phase 3.6: Fire search_executed event for analytics
   // Phase 3.7: Debounce search_executed to reduce keystroke noise
   useEffect(() => {
@@ -102,20 +110,12 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
     }
 
     if (query.trim()) {
-      // Parse natural language query
-      const parsed = parseQuery(query);
-      const intent = formatIntentMessage(parsed);
-      setIntentMessage(intent);
-
-      // Search with optional filters from parser
+      // Basic keyword search (no NL parsing)
       const searchResults = searchGraphItems(
-        parsed.searchTerm,
+        query,
         nodes,
         projects,
-        {
-          filterType: parsed.filterType,
-          filterEntity: parsed.filterEntity,
-        }
+        {}
       );
       setResults(searchResults);
       setIsOpen(true); // Always open when typing, even if no results (shows empty state)
@@ -127,7 +127,6 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
       // Track search session for analytics (Phase 3.6)
       searchSessionRef.current = {
         rawQuery: query,
-        parsed,
         resultCount: searchResults.length,
         openedAt: Date.now(),
         selectedInSession: false,
@@ -137,19 +136,18 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
       // Fire only 300ms after user stops typing to reduce noise (keystroke inflation)
       // Results display instantly; analytics event fires on stabilization
       searchExecutedTimerRef.current = setTimeout(() => {
-        const intentPattern = deriveIntentPattern(parsed);
         const { sanitizedQuery, queryHash } = sanitizeSearchQuery(query);
 
         const event: SearchExecutedEvent = {
           type: 'search_executed',
           rawQuery: query,
-          sanitizedQuery, // Phase 3.7: Truncated to 100 chars for safe logging
-          queryHash, // Phase 3.7: Hash for deduplication
-          normalizedQuery: parsed.searchTerm,
-          parsed: parsed.isLikelyIntent,
-          intentPattern,
-          filterType: parsed.filterType || null,
-          filterEntity: parsed.filterEntity || null,
+          sanitizedQuery,
+          queryHash,
+          normalizedQuery: query,
+          parsed: false,
+          intentPattern: null,
+          filterType: null,
+          filterEntity: null,
           resultCount: searchResults.length,
           emptyResult: searchResults.length === 0,
           timestamp: Date.now(),
@@ -160,7 +158,6 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
       setResults([]);
       setShowRecents(false);
       setIsOpen(false);
-      setIntentMessage(null);
       searchSessionRef.current = null;
     }
 
@@ -196,7 +193,6 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
       const session = searchSessionRef.current;
       if (session) {
         const selectedRank = flatResults.indexOf(result);
-        const intentPattern = deriveIntentPattern(session.parsed);
         const label = result.type === 'node'
           ? `${result.data.title} (${result.data.type})`
           : result.data.title;
@@ -215,8 +211,8 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
           selectedType: result.type === 'node' ? result.data.type : undefined,
           selectedRank: selectedRank >= 0 ? selectedRank : 0,
           resultCount: session.resultCount,
-          parsed: session.parsed.isLikelyIntent,
-          intentPattern,
+          parsed: false,
+          intentPattern: null,
           timestamp: Date.now(),
         };
         logSearchEvent(event);
@@ -280,16 +276,19 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
+          e.stopPropagation();
           setHighlightedIndex(prev =>
             prev < itemsToNavigate.length - 1 ? prev + 1 : prev
           );
           break;
         case 'ArrowUp':
           e.preventDefault();
+          e.stopPropagation();
           setHighlightedIndex(prev => (prev > 0 ? prev - 1 : -1));
           break;
         case 'Enter':
           e.preventDefault();
+          e.stopPropagation();
           if (highlightedIndex >= 0) {
             if (showRecents && recentSearches[highlightedIndex]) {
               // For recent search, just populate the input and search
@@ -303,6 +302,7 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
           break;
         case 'Escape':
           e.preventDefault();
+          e.stopPropagation();
           setIsOpen(false);
           setShowRecents(false);
           setHighlightedIndex(-1);
@@ -325,7 +325,6 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
   useEffect(() => {
     if (!isOpen && searchSessionRef.current && !searchSessionRef.current.selectedInSession) {
       const session = searchSessionRef.current;
-      const intentPattern = deriveIntentPattern(session.parsed);
       const { sanitizedQuery, queryHash } = sanitizeSearchQuery(session.rawQuery);
 
       const event = {
@@ -333,11 +332,11 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
         rawQuery: session.rawQuery,
         sanitizedQuery, // Phase 3.7: Truncated to 100 chars for safe logging
         queryHash, // Phase 3.7: Hash for deduplication
-        normalizedQuery: session.parsed.searchTerm,
-        parsed: session.parsed.isLikelyIntent,
-        intentPattern,
-        filterType: session.parsed.filterType || null,
-        filterEntity: session.parsed.filterEntity || null,
+        normalizedQuery: session.rawQuery,
+        parsed: false,
+        intentPattern: null,
+        filterType: null,
+        filterEntity: null,
         resultCount: session.resultCount,
         sessionDurationMs: Date.now() - session.openedAt,
         timestamp: Date.now(),
@@ -399,60 +398,82 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
   };
 
   return (
-    <div className="search-ui">
-      <div className="search-input-wrapper">
-        <input
-          ref={inputRef}
-          type="text"
-          className="search-input"
-          placeholder="Search nodes or projects..."
-          data-search-input="true"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (query.trim()) {
-              setIsOpen(results.length > 0);
-              setShowRecents(false);
-            } else {
-              // Load navigation items and recent searches from localStorage
-              const latestPinned = getPinnedItems();
-              const latestRecent = getRecentItems();
-              const latestRecents = getRecentSearches();
-
-              setPinnedItems(latestPinned);
-              setRecentItems(latestRecent);
-              setRecentSearches(latestRecents);
-
-              // Show if any content available
-              if (latestPinned.length > 0 || latestRecent.length > 0 || latestRecents.length > 0) {
-                setShowRecents(true);
-                setIsOpen(true);
-                setHighlightedIndex(-1);
-              }
-            }
+    <div className={`search-ui ${demoMode ? 'demo-mode' : ''}`}>
+      {demoMode ? (
+        <button
+          className="search-icon-button"
+          onClick={() => {
+            inputRef.current?.focus();
+            setIsOpen(true);
+            const latestPinned = getPinnedItems();
+            const latestRecent = getRecentItems();
+            const latestRecents = getRecentSearches();
+            setPinnedItems(latestPinned);
+            setRecentItems(latestRecent);
+            setRecentSearches(latestRecents);
+            setShowRecents(true);
           }}
-          onBlur={handleBlur}
-          aria-label="Search constellation"
-          aria-autocomplete="list"
-          aria-controls="search-results"
-          aria-expanded={isOpen}
-        />
-        {query && (
-          <button
-            className="search-clear"
-            onClick={() => {
-              setQuery('');
-              setIsOpen(false);
-              setShowRecents(false);
+          aria-label="Search constellation (or press Cmd+K)"
+          title="Search (Cmd+K)"
+        >
+          🔍
+        </button>
+      ) : (
+        <div className="search-input-wrapper">
+          <input
+            ref={inputRef}
+            type="text"
+            className="search-input"
+            placeholder="Search nodes or projects..."
+            data-search-input="true"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            autoFocus={isOpen}
+            onFocus={() => {
+              if (query.trim()) {
+                setIsOpen(results.length > 0);
+                setShowRecents(false);
+              } else {
+                // Load navigation items and recent searches from localStorage
+                const latestPinned = getPinnedItems();
+                const latestRecent = getRecentItems();
+                const latestRecents = getRecentSearches();
+
+                setPinnedItems(latestPinned);
+                setRecentItems(latestRecent);
+                setRecentSearches(latestRecents);
+
+                // Show if any content available
+                if (latestPinned.length > 0 || latestRecent.length > 0 || latestRecents.length > 0) {
+                  setShowRecents(true);
+                  setIsOpen(true);
+                  setHighlightedIndex(-1);
+                }
+              }
             }}
-            aria-label="Clear search"
-            title="Clear (Ctrl+A, Delete)"
-          >
-            ×
-          </button>
-        )}
-      </div>
+            onBlur={handleBlur}
+            aria-label="Search constellation"
+            aria-autocomplete="list"
+            aria-controls="search-results"
+            aria-expanded={isOpen}
+          />
+          {query && (
+            <button
+              className="search-clear"
+              onClick={() => {
+                setQuery('');
+                setIsOpen(false);
+                setShowRecents(false);
+              }}
+              aria-label="Clear search"
+              title="Clear (Ctrl+A, Delete)"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Search results (grouped by type) */}
       {isOpen && results.length > 0 && !showRecents && (
@@ -461,13 +482,6 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
           id="search-results"
           role="listbox"
         >
-          {/* Intent hint (Phase 3.5) */}
-          {intentMessage && (
-            <div className="search-intent-hint">
-              {intentMessage}
-            </div>
-          )}
-
           {groupedResults.map((group) => (
             <div key={group.type} className="search-result-group">
               {/* Section header */}
@@ -487,7 +501,13 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
                       flatIndex === highlightedIndex ? 'highlighted' : ''
                     } search-result-${result.type}`}
                     onClick={() => selectResult(result)}
-                    onMouseEnter={() => setHighlightedIndex(flatIndex)}
+                    onMouseEnter={() => {
+                      setHighlightedIndex(flatIndex);
+                      onSearchResultHover?.(result.data.id);
+                    }}
+                    onMouseLeave={() => {
+                      onSearchResultHover?.(null);
+                    }}
                     role="option"
                     aria-selected={flatIndex === highlightedIndex}
                   >
@@ -552,6 +572,8 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
                   key={item.id}
                   className="search-result search-navigation-item search-pinned"
                   onClick={() => selectNavigationItem(item)}
+                  onMouseEnter={() => onSearchResultHover?.(item.entityId)}
+                  onMouseLeave={() => onSearchResultHover?.(null)}
                   role="option"
                 >
                   <div className="search-result-content">
@@ -575,6 +597,8 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
                   key={item.id}
                   className="search-result search-navigation-item search-recent-item"
                   onClick={() => selectNavigationItem(item)}
+                  onMouseEnter={() => onSearchResultHover?.(item.entityId)}
+                  onMouseLeave={() => onSearchResultHover?.(null)}
                   role="option"
                 >
                   <div className="search-result-content">

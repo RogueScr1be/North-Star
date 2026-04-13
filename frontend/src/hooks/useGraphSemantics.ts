@@ -4,7 +4,7 @@
  * Phase 5.5: Intelligent graph navigation
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import type { RenderableGraph } from '../lib/graph/graphTransforms';
 import type { GraphEdge } from '../lib/graph/graphTypes';
 import type { SemanticFilters, SemanticVisibility } from '../lib/graph/graphSemantics';
@@ -43,11 +43,23 @@ interface UseGraphSemanticsReturn {
   getAvailableRelationshipTypes: () => string[];
 }
 
-const defaultFilters: SemanticFilters = {
-  enabledNodeTypes: new Set(), // empty = all enabled
-  enabledTags: new Set(),
-  enabledRelationshipTypes: new Set(),
-};
+// Helper function to create default/reset filters
+// IMPORTANT: Must include ALL SemanticFilters properties explicitly
+// (not just the Set-based ones) so that optional properties
+// like subgraphNodeId are explicitly cleared when reset.
+function createDefaultFilters(): SemanticFilters {
+  return {
+    subgraphNodeId: undefined,
+    subgraphHops: undefined,
+    projectClusterId: undefined,
+    enabledNodeTypes: new Set(),
+    enabledTags: new Set(),
+    enabledRelationshipTypes: new Set(),
+    edgeGravityThreshold: undefined,
+  };
+}
+
+const defaultFilters: SemanticFilters = createDefaultFilters();
 
 export function useGraphSemantics({ graph, edges }: UseGraphSemanticsProps): UseGraphSemanticsReturn {
   const [filters, setFilters] = useState<SemanticFilters>({ ...defaultFilters });
@@ -55,31 +67,87 @@ export function useGraphSemantics({ graph, edges }: UseGraphSemanticsProps): Use
   // Compute visibility based on filters and graph
   const visibility = useMemo(() => {
     if (!graph) return null;
-    return computeSemanticVisibility(graph, edges, filters);
+    console.log('[useGraphSemantics] visibility RECOMPUTING', {
+      subgraphNodeId: filters.subgraphNodeId,
+      projectClusterId: filters.projectClusterId,
+      enabledNodeTypes: filters.enabledNodeTypes.size,
+      enabledTags: filters.enabledTags.size,
+      enabledRelationshipTypes: filters.enabledRelationshipTypes.size,
+      edgeGravityThreshold: filters.edgeGravityThreshold,
+    });
+    const result = computeSemanticVisibility(graph, edges, filters);
+    console.log('[useGraphSemantics] visibility COMPUTED', {
+      visibleNodeCount: result.visibleNodeIds.size,
+      visibleProjectCount: result.visibleProjectIds.size,
+      visibleEdgeCount: result.visibleEdgeIds.size,
+      reason: result.reason,
+    });
+    return result;
   }, [graph, edges, filters]);
 
   // Subgraph controls
-  const setSubgraphNode = (nodeId: string | undefined, hops: number = 1) => {
-    setFilters(prev => ({
-      ...prev,
-      subgraphNodeId: nodeId,
-      subgraphHops: hops,
-      projectClusterId: undefined, // Clear project cluster when setting subgraph
-    }));
-  };
+  const setSubgraphNode = useCallback((nodeId: string | undefined, hops: number = 1) => {
+    console.log('[useGraphSemantics] setSubgraphNode ENTRY', {
+      nodeId,
+      hops,
+      currentFilters: {
+        subgraphNodeId: filters.subgraphNodeId,
+        projectClusterId: filters.projectClusterId,
+      },
+    });
+    setFilters(prev => {
+      const next = {
+        ...prev,
+        subgraphNodeId: nodeId,
+        subgraphHops: hops,
+        projectClusterId: undefined, // Clear project cluster when setting subgraph
+      };
+      console.log('[useGraphSemantics] setSubgraphNode FILTER_UPDATE', {
+        prev: { subgraphNodeId: prev.subgraphNodeId, projectClusterId: prev.projectClusterId },
+        next: { subgraphNodeId: next.subgraphNodeId, projectClusterId: next.projectClusterId },
+      });
+      return next;
+    });
+  }, []);
 
   // Project cluster control
-  const setProjectCluster = (projectId: string | undefined) => {
-    setFilters(prev => ({
-      ...prev,
-      projectClusterId: projectId,
-      subgraphNodeId: undefined, // Clear subgraph when setting project cluster
-    }));
-  };
+  const setProjectCluster = useCallback((projectId: string | undefined) => {
+    console.log('[useGraphSemantics] setProjectCluster ENTRY', {
+      projectId,
+      currentFilters: {
+        subgraphNodeId: filters.subgraphNodeId,
+        projectClusterId: filters.projectClusterId,
+      },
+    });
+    setFilters(prev => {
+      const next = {
+        ...prev,
+        projectClusterId: projectId,
+        subgraphNodeId: undefined, // Clear subgraph when setting project cluster
+      };
+      console.log('[useGraphSemantics] setProjectCluster FILTER_UPDATE', {
+        prev: { subgraphNodeId: prev.subgraphNodeId, projectClusterId: prev.projectClusterId },
+        next: { subgraphNodeId: next.subgraphNodeId, projectClusterId: next.projectClusterId },
+      });
+      return next;
+    });
+  }, []);
 
   // Clear all filters
   const clearAllFilters = () => {
-    setFilters({ ...defaultFilters });
+    const freshDefaults = createDefaultFilters();
+    console.log('[useGraphSemantics] clearAllFilters CALLED', {
+      previousFilters: {
+        subgraphNodeId: filters.subgraphNodeId,
+        projectClusterId: filters.projectClusterId,
+        enabledNodeTypes: filters.enabledNodeTypes.size,
+        enabledTags: filters.enabledTags.size,
+        enabledRelationshipTypes: filters.enabledRelationshipTypes.size,
+        edgeGravityThreshold: filters.edgeGravityThreshold,
+      },
+      newFilters: freshDefaults,
+    });
+    setFilters(freshDefaults);
   };
 
   // Toggle node type
