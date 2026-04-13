@@ -246,7 +246,7 @@ router.post('/stream', async (req: Request, res: Response) => {
     // Use OpenAI streaming API
     const stream = await openai.chat.completions.create({
       model: model,
-      max_tokens: 1024,
+      max_completion_tokens: 1024,
       stream: true,
       messages: [
         {
