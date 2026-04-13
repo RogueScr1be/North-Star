@@ -190,12 +190,128 @@ ${relationshipsSummary}
 }
 
 // ============================================================================
+// ROUTE: POST /api/ask-graph-stream (SSE Streaming)
+// ============================================================================
+
+/**
+ * Ask a question with Server-Sent Events (SSE) streaming response
+ * Streams answer text chunks in real-time, sends citations at end
+ * Phase 8.0a: Real-time streaming with progressive text rendering
+ */
+router.post('/stream', async (req: Request, res: Response) => {
+  const requestId = randomUUID();
+  const startTime = Date.now();
+
+  try {
+    const { question, graph: clientGraph } = req.body as AskGraphRequest;
+
+    if (!question || typeof question !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'question is required and must be a string',
+      });
+      return;
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      res.status(500).json({
+        success: false,
+        error: 'OPENAI_API_KEY is not set',
+      });
+      return;
+    }
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    // Model routing (same as non-streaming)
+    const shouldEscalate = /between|relationship|all projects|across|connect|relate|integration|dependency|flow|architecture|holistic|overall|should|recommend|strategy|best|next|priority|roadmap|approach|plan|synthesis|summary|overview/i.test(question);
+    const model = shouldEscalate ? 'gpt-5.4-2026-03-05' : 'gpt-5.4-mini-2026-03-17';
+
+    const graph = clientGraph || (await fetchGraphData());
+    const graphContext = formatGraphContext(graph);
+
+    const sanitizedQuestion = question.length > 100 ? question.substring(0, 100) + '...' : question;
+    console.log(`[AskGraph-Stream] Question: ${sanitizedQuestion}`);
+    console.log(`[AskGraph-Stream] Model: ${model} (escalated: ${shouldEscalate})`);
+
+    // Use OpenAI streaming API
+    const stream = await openai.chat.completions.create({
+      model: model,
+      max_tokens: 1024,
+      stream: true,
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert analyst of knowledge graphs. You answer questions about a specific knowledge graph provided below. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
+        },
+        {
+          role: 'user',
+          content: `${graphContext}
+
+User Question: ${question}
+
+Please answer the question based on the knowledge graph provided above. Always ground your answers in the graph data provided. Cite specific nodes and projects from the graph when relevant. If you cannot answer based on the graph, say so clearly. Be concise and direct.`,
+        },
+      ],
+    });
+
+    // Buffer the full answer for citation extraction
+    let fullAnswer = '';
+
+    // Stream chunks to client
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content;
+      if (delta) {
+        fullAnswer += delta;
+        // Send chunk via SSE
+        res.write(`data: ${JSON.stringify({ type: 'chunk', text: delta })}\n\n`);
+      }
+    }
+
+    // Extract citations from full answer
+    const { nodeIds, projectIds } = extractCitedEntities(fullAnswer, graph);
+    const citedCount = nodeIds.length + projectIds.length;
+    const confidence: 'high' | 'medium' | 'low' =
+      citedCount >= 3 ? 'high' : citedCount >= 1 ? 'medium' : 'low';
+
+    console.log(`[AskGraph-Stream] Citations: ${citedCount} entities`);
+
+    // Send citations as final message
+    res.write(`data: ${JSON.stringify({
+      type: 'citations',
+      nodeIds,
+      projectIds,
+      confidence,
+    })}\n\n`);
+
+    // Send completion signal
+    res.write(`data: ${JSON.stringify({ type: 'complete', requestId })}\n\n`);
+    res.end();
+  } catch (error) {
+    console.error('[AskGraph-Stream] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.write(`data: ${JSON.stringify({ type: 'error', error: errorMessage })}\n\n`);
+    res.end();
+  }
+});
+
+// ============================================================================
 // ROUTE: POST /api/ask-graph
 // ============================================================================
 
 /**
  * Ask a natural language question about the knowledge graph
  * OpenAI model synthesizes an answer based on graph context
+ * Non-streaming fallback for clients that don't support SSE
  */
 router.post('/', async (req: Request, res: Response) => {
   // Telemetry: Initialize request correlation IDs (available to both try and catch)
