@@ -30,53 +30,96 @@ export function useURLSelection({ nodes, projects }: UseURLSelectionProps) {
 
   // Helper function to restore selection from URL
   const restoreFromURL = (nodesList: GraphNode[], projectsList: GraphProject[]) => {
-    const params = new URLSearchParams(window.location.search);
-    const selected = params.get('selected');
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlSelected = urlParams.get('selected');
 
-    if (!selected) {
+    console.log('[STEP_1_1] restoreFromURL entry:', JSON.stringify({
+      totalNodes: nodesList?.length,
+      totalProjects: projectsList?.length,
+      urlSelected: urlSelected,
+      timestamp: new Date().toISOString(),
+    }, null, 2));
+
+    if (!urlSelected) {
+      console.log('[STEP_1_1] no selected param in URL, clearing selection');
       setSelectedItem(null);
       previousSelectedIdRef.current = null;
       return;
     }
 
-    if (selected.startsWith('node-')) {
-      const nodeId = selected.substring(5); // Remove 'node-' prefix
-      const node = nodesList.find(n => n.id === nodeId);
+    if (urlSelected.startsWith('node-')) {
+      const allNodeIds = nodesList.map(n => n.id);
+      console.log('[STEP_1_1] node lookup starting:', JSON.stringify({
+        targetId: urlSelected,
+        totalNodeCount: nodesList.length,
+        allNodeIds: allNodeIds,
+        targetFoundInList: allNodeIds.includes(urlSelected),
+      }, null, 2));
+
+      const node = nodesList.find(n => n.id === urlSelected);
+
       if (node) {
+        console.log('[STEP_1_1] node found:', JSON.stringify({ nodeId: node.id, title: node.title }));
         // Phase 5.9: Only fire if selection actually changed
         if (previousSelectedIdRef.current !== node.id) {
           logNodeSelected(node, 'url_restore');
           previousSelectedIdRef.current = node.id;
         }
+        console.log('[STEP_1_1] calling setSelectedItem with node:', JSON.stringify({ type: 'node', nodeId: node.id, title: node.title }));
         setSelectedItem({ type: 'node', data: node });
       } else {
-        setSelectedItem(null); // Invalid URL, clear state
+        console.log('[STEP_1_1] node NOT found in list, clearing selection:', JSON.stringify({ targetId: urlSelected, availableNodeCount: nodesList.length, availableNodeIds: allNodeIds }));
+        setSelectedItem(null);
         previousSelectedIdRef.current = null;
       }
-    } else if (selected.startsWith('project-')) {
-      const projectId = selected.substring(8); // Remove 'project-' prefix
-      const project = projectsList.find(p => p.id === projectId);
+    } else if (urlSelected.startsWith('proj-')) {
+      const allProjectIds = projectsList.map(p => p.id);
+      console.log('[STEP_1_1] project lookup starting:', {
+        targetId: urlSelected,
+        totalProjectCount: projectsList.length,
+        allProjectIds: allProjectIds,
+        targetFoundInList: allProjectIds.includes(urlSelected),
+      });
+
+      const project = projectsList.find(p => p.id === urlSelected);
+
       if (project) {
+        console.log('[STEP_1_1] project found:', { projectId: project.id, title: project.title });
         // Phase 5.9: Only fire if selection actually changed
         if (previousSelectedIdRef.current !== project.id) {
           const nodeCountInProject = nodesList.filter(n => n.project_id === project.id).length;
           logProjectSelected(project, nodeCountInProject, 'url_restore');
           previousSelectedIdRef.current = project.id;
         }
+        console.log('[STEP_1_1] calling setSelectedItem with project:', { type: 'project', projectId: project.id, title: project.title });
         setSelectedItem({ type: 'project', data: project });
       } else {
-        setSelectedItem(null); // Invalid URL, clear state
+        console.log('[STEP_1_1] project NOT found in list, clearing selection:', { targetId: urlSelected, availableProjectCount: projectsList.length });
+        setSelectedItem(null);
         previousSelectedIdRef.current = null;
       }
+    } else {
+      console.log('[STEP_1_1] selected param has unknown prefix, clearing:', { urlSelected });
+      setSelectedItem(null);
+      previousSelectedIdRef.current = null;
     }
   };
 
   // On first load of valid data, restore selection from URL
+  // FIXED: Removed hasInitialized from dependency array
+  // Reason: Effect should run only once when nodes/projects become available (when data loads)
+  // Without hasInitialized in deps, the effect won't re-run after setHasInitialized(true) is called
   useEffect(() => {
-    if (!nodes || !projects || hasInitialized) return;
+    console.log('[STEP_1_1] initial load effect running:', { hasNodes: !!nodes, hasProjects: !!projects, hasInitialized });
+    if (!nodes || !projects || hasInitialized) {
+      console.log('[STEP_1_1] initial load effect early exit:', { reason: !nodes ? 'no nodes' : !projects ? 'no projects' : 'already initialized' });
+      return;
+    }
+    console.log('[STEP_1_1] calling restoreFromURL from initial load effect');
     restoreFromURL(nodes, projects);
+    console.log('[STEP_1_1] calling setHasInitialized(true)');
     setHasInitialized(true);
-  }, [nodes, projects, hasInitialized]);
+  }, [nodes, projects]);
 
   // On URL change via back/forward, restore from new URL
   useEffect(() => {
@@ -91,38 +134,48 @@ export function useURLSelection({ nodes, projects }: UseURLSelectionProps) {
   }, [nodes, projects, hasInitialized]);
 
   const selectNode = useCallback((node: GraphNode) => {
+    console.log('[INSTRUMENT] selectNode called:', { nodeId: node.id, title: node.title });
     // Phase 5.9: Track selection to prevent duplicate-fire on URL restore
     previousSelectedIdRef.current = node.id;
+    console.log('[INSTRUMENT] calling setSelectedItem from selectNode:', { type: 'node', id: node.id });
     setSelectedItem({ type: 'node', data: node });
     const params = new URLSearchParams(window.location.search);
-    params.set('selected', `node-${node.id}`);
+    params.set('selected', node.id);
+    console.log('[INSTRUMENT] replaceState:', { newUrl: `${window.location.pathname}?${params.toString()}` });
     window.history.replaceState(
-      { selected: `node-${node.id}` },
+      { selected: node.id },
       '',
       `${window.location.pathname}?${params.toString()}`
     );
-  }, []);
+  }, [nodes, projects]);
 
   const selectProject = useCallback((project: GraphProject) => {
+    console.log('[INSTRUMENT] selectProject called:', { projectId: project.id, title: project.title });
     // Phase 5.9: Track selection to prevent duplicate-fire on URL restore
     previousSelectedIdRef.current = project.id;
+    console.log('[INSTRUMENT] calling setSelectedItem from selectProject:', { type: 'project', id: project.id });
     setSelectedItem({ type: 'project', data: project });
     const params = new URLSearchParams(window.location.search);
-    params.set('selected', `project-${project.id}`);
+    params.set('selected', project.id);
+    console.log('[INSTRUMENT] replaceState:', { newUrl: `${window.location.pathname}?${params.toString()}` });
     window.history.replaceState(
-      { selected: `project-${project.id}` },
+      { selected: project.id },
       '',
       `${window.location.pathname}?${params.toString()}`
     );
-  }, []);
+  }, [nodes, projects]);
 
   const clearSelection = useCallback(() => {
+    console.log('[INSTRUMENT] clearSelection called');
+    console.trace('[INSTRUMENT] clearSelection stack trace');
     // Phase 5.9: Clear selection tracking ref
     previousSelectedIdRef.current = null;
+    console.log('[INSTRUMENT] calling setSelectedItem(null) from clearSelection');
     setSelectedItem(null);
     const params = new URLSearchParams(window.location.search);
     params.delete('selected');
     const newSearch = params.toString();
+    console.log('[INSTRUMENT] replaceState to clear selected:', { newUrl: newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname });
     window.history.replaceState(
       { selected: null },
       '',
