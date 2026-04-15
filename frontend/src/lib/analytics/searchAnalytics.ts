@@ -87,6 +87,7 @@ export interface AskGraphSubmittedEvent {
 /**
  * ask_graph_answered: Fired when Ask-the-Graph successfully generates an answer
  * Phase 4.0: Track successful answers with evidence metrics
+ * Phase 8.2: Added enriched instrumentation fields for streaming/fallback behavior
  */
 export interface AskGraphAnsweredEvent {
   type: 'ask_graph_answered';
@@ -99,6 +100,14 @@ export interface AskGraphAnsweredEvent {
   citedNodeCount: number;     // How many nodes cited as evidence
   citedProjectCount: number;  // How many projects cited as evidence
   answerConfidence: 'high' | 'medium' | 'low';
+  // Phase 8.2: Enriched instrumentation fields
+  requestId?: string;         // Backend request ID for correlation
+  model?: string;             // LLM model used (gpt-5.4-mini-2026-03-17, gpt-5.4-2026-03-05, etc.)
+  usedStreaming?: boolean;    // True if response was streamed, false if fallback
+  fallbackReason?: string;    // Reason for fallback (if usedStreaming=false)
+  firstTokenLatencyMs?: number; // Time from request to first token (streaming only)
+  totalStreamDurationMs?: number; // Total time for response generation
+  chunkCount?: number;        // Number of SSE chunks (streaming only)
   timestamp: number;
 }
 

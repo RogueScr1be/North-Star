@@ -70,6 +70,12 @@ export function useAskTheGraph(
       let citedProjectIds: string[] = [];
       let confidence: 'high' | 'medium' | 'low' = 'medium';
       let requestId: string | undefined;
+      // Phase 8.2: Instrumentation fields
+      let model: string | undefined;
+      let usedStreaming: boolean | undefined;
+      let firstTokenLatencyMs: number | undefined;
+      let totalStreamDurationMs: number | undefined;
+      let chunkCount: number | undefined;
 
       try {
         // eslint-disable-next-line no-constant-condition
@@ -119,11 +125,18 @@ export function useAskTheGraph(
                   }));
                 }
 
-                // Type: citations — extract cited entities
+                // Type: citations — extract cited entities and Phase 8.2 instrumentation
                 if (message.type === 'citations') {
                   citedNodeIds = message.nodeIds || [];
                   citedProjectIds = message.projectIds || [];
                   confidence = message.confidence || 'medium';
+                  // Phase 8.2: Extract enriched instrumentation fields
+                  model = message.model;
+                  usedStreaming = message.usedStreaming;
+                  // Note: fallbackReason only applies to non-streaming path, not extracted from streaming
+                  firstTokenLatencyMs = message.firstTokenLatencyMs;
+                  totalStreamDurationMs = message.totalStreamDurationMs;
+                  chunkCount = message.chunkCount;
                 }
 
                 // Type: complete — final state with requestId
@@ -195,7 +208,7 @@ export function useAskTheGraph(
 
         setState({ query, loading: false, answer, error: null });
 
-        // Log analytics
+        // Log analytics (Phase 8.2: Include instrumentation fields)
         try {
           const { sanitizedQuery, queryHash } = sanitizeSearchQuery(query);
           logSearchEvent({
@@ -208,6 +221,13 @@ export function useAskTheGraph(
             citedNodeCount: answer.citedNodes.length,
             citedProjectCount: answer.citedProjects.length,
             answerConfidence: answer.confidence,
+            // Phase 8.2: Enriched instrumentation fields
+            requestId: requestId,
+            model: model,
+            usedStreaming: usedStreaming,
+            firstTokenLatencyMs: firstTokenLatencyMs,
+            totalStreamDurationMs: totalStreamDurationMs,
+            chunkCount: chunkCount,
             timestamp: Date.now(),
           } as const as AskGraphAnsweredEvent);
         } catch (analyticsErr) {
@@ -320,7 +340,7 @@ export function useAskTheGraph(
 
           setState({ query, loading: false, answer, error: null });
 
-          // Step 4: Log analytics
+          // Step 4: Log analytics (Phase 8.2: Include instrumentation fields)
           try {
             const { sanitizedQuery, queryHash } = sanitizeSearchQuery(query);
 
@@ -334,6 +354,14 @@ export function useAskTheGraph(
               citedNodeCount: answer.citedNodes.length,
               citedProjectCount: answer.citedProjects.length,
               answerConfidence: answer.confidence,
+              // Phase 8.2: Enriched instrumentation fields from non-streaming endpoint
+              requestId: result.requestId,
+              model: result.model,
+              usedStreaming: result.usedStreaming,
+              fallbackReason: result.fallbackReason,
+              firstTokenLatencyMs: result.firstTokenLatencyMs,
+              totalStreamDurationMs: result.totalStreamDurationMs,
+              chunkCount: result.chunkCount,
               timestamp: Date.now(),
             } as const as AskGraphAnsweredEvent);
           } catch (analyticsErr) {

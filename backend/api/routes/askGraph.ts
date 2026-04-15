@@ -2,6 +2,7 @@
  * ASK_GRAPH.TS
  * Natural language query endpoint with OpenAI Responses API synthesis
  * Phase 7.1: OpenAI Responses API integration with model routing (gpt-5.4-mini / gpt-5.4)
+ * Phase 8.2: Enriched instrumentation fields for streaming/fallback behavior measurement
  */
 
 import { Router, Request, Response } from 'express';
@@ -51,6 +52,15 @@ interface AskGraphResponse {
   citedProjectIds: string[];
   confidence: 'high' | 'medium' | 'low';
   requestId?: string; // Phase 7.1: Frontend telemetry correlation
+  // Phase 8.2: Enriched instrumentation fields
+  model?: string; // e.g., 'gpt-5.4-mini-2026-03-17' or 'gpt-5.4-2026-03-05'
+  usedStreaming?: boolean; // true if streamed response, false if fallback
+  fallbackReason?: string; // Reason for fallback if usedStreaming=false
+  firstTokenLatencyMs?: number; // Time from request to first token
+  totalStreamDurationMs?: number; // Total time for streaming/response
+  chunkCount?: number; // Number of SSE chunks for streaming
+  citedNodeCount?: number; // Count of cited nodes
+  citedProjectCount?: number; // Count of cited projects
   error?: string;
 }
 
@@ -266,11 +276,18 @@ Please answer the question based on the knowledge graph provided above. Always g
 
     // Buffer the full answer for citation extraction
     let fullAnswer = '';
+    let chunkCount = 0;
+    let firstTokenTime: number | null = null;
 
     // Stream chunks to client
     for await (const chunk of stream) {
       const delta = chunk.choices[0]?.delta?.content;
       if (delta) {
+        // Track first token latency (Phase 8.2)
+        if (firstTokenTime === null) {
+          firstTokenTime = Date.now();
+        }
+        chunkCount++;
         fullAnswer += delta;
         // Send chunk via SSE
         res.write(`data: ${JSON.stringify({ type: 'chunk', text: delta })}\n\n`);
@@ -283,7 +300,12 @@ Please answer the question based on the knowledge graph provided above. Always g
     const confidence: 'high' | 'medium' | 'low' =
       citedCount >= 3 ? 'high' : citedCount >= 1 ? 'medium' : 'low';
 
+    // Phase 8.2: Calculate streaming metrics
+    const totalStreamDurationMs = Date.now() - startTime;
+    const firstTokenLatencyMs = firstTokenTime !== null ? firstTokenTime - startTime : 0;
+
     console.log(`[AskGraph-Stream] Citations: ${citedCount} entities`);
+    console.log(`[AskGraph-Stream] Metrics: firstToken=${firstTokenLatencyMs}ms, totalDuration=${totalStreamDurationMs}ms, chunks=${chunkCount}`);
 
     // Send citations as final message
     res.write(`data: ${JSON.stringify({
@@ -291,6 +313,15 @@ Please answer the question based on the knowledge graph provided above. Always g
       nodeIds,
       projectIds,
       confidence,
+      // Phase 8.2: Include enriched instrumentation
+      model,
+      usedStreaming: true,
+      firstTokenLatencyMs,
+      totalStreamDurationMs,
+      chunkCount,
+      citedNodeCount: nodeIds.length,
+      citedProjectCount: projectIds.length,
+      requestId,
     })}\n\n`);
 
     // Send completion signal
@@ -412,9 +443,9 @@ Please answer the question based on the knowledge graph provided above. Always g
 
     console.log(`[AskGraph] Citations: ${citedCount} entities (${nodeIds.length} nodes, ${projectIds.length} projects)`);
 
-    // Classify no-answer scenario based on retrieval metrics
-    const retrievedNodeCount = graph.nodes.length;
-    const retrievedEdgeCount = graph.edges.length;
+    // Phase 8.2: Calculate response metrics
+    const totalStreamDurationMs = Date.now() - startTime;
+    console.log(`[AskGraph] Metrics: totalDuration=${totalStreamDurationMs}ms, model=${model}, usedStreaming=false`);
 
     return res.json({
       success: true,
@@ -423,6 +454,12 @@ Please answer the question based on the knowledge graph provided above. Always g
       citedProjectIds: projectIds,
       confidence,
       requestId, // Phase 7.1: Expose requestId for frontend telemetry correlation
+      // Phase 8.2: Enriched instrumentation fields
+      model,
+      usedStreaming: false,
+      totalStreamDurationMs,
+      citedNodeCount: nodeIds.length,
+      citedProjectCount: projectIds.length,
     } as AskGraphResponse);
   } catch (error) {
     console.error('[AskGraph] Error:', error);
