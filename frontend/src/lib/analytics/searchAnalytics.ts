@@ -108,6 +108,8 @@ export interface AskGraphAnsweredEvent {
   firstTokenLatencyMs?: number; // Time from request to first token (streaming only)
   totalStreamDurationMs?: number; // Total time for response generation
   chunkCount?: number;        // Number of SSE chunks (streaming only)
+  // Phase 10.0b: Cache observability
+  isCacheHit?: boolean;       // True if answer came from session cache, false if fetched from backend
   timestamp: number;
 }
 

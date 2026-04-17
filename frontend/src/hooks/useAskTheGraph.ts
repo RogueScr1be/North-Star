@@ -4,7 +4,7 @@
  * Phase 8.0a: Real-time streaming with progressive text rendering
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { GraphNode, GraphProject } from '../lib/graph/graphTypes';
 import { Answer } from '../lib/graph/answerComposer';
 import {
@@ -41,13 +41,16 @@ export function useAskTheGraph(
     error: null,
   });
 
+  // Phase 10.0a: Session cache for deduplication (5-min TTL per query)
+  const sessionCacheRef = useRef<Record<string, { answer: Answer; expiresAt: number }>>({});
+
   /**
    * Handle streaming response from SSE endpoint
    * Real-time text rendering with citation extraction on completion
    * Phase 8.0a: Real-time streaming with progressive text rendering
    */
   const handleStreamingResponse = useCallback(
-    async (query: string, API_BASE: string, requestSubmissionTime: number) => {
+    async (query: string, API_BASE: string, requestSubmissionTime: number, queryHash: string) => {
       const response = await fetch(`${API_BASE}/ask-graph/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -206,9 +209,15 @@ export function useAskTheGraph(
           renderLatencyMs: Date.now() - requestSubmissionTime,
         };
 
+        // Phase 10.0a: Cache the successful answer
+        sessionCacheRef.current[queryHash] = {
+          answer,
+          expiresAt: Date.now() + 300000, // 5 min TTL
+        };
+
         setState({ query, loading: false, answer, error: null });
 
-        // Log analytics (Phase 8.2: Include instrumentation fields)
+        // Log analytics (Phase 8.2: Include instrumentation fields; Phase 10.0b: Include cache hit status)
         try {
           const { sanitizedQuery, queryHash } = sanitizeSearchQuery(query);
           logSearchEvent({
@@ -228,6 +237,8 @@ export function useAskTheGraph(
             firstTokenLatencyMs: firstTokenLatencyMs,
             totalStreamDurationMs: totalStreamDurationMs,
             chunkCount: chunkCount,
+            // Phase 10.0b: Cache observability
+            isCacheHit: false,
             timestamp: Date.now(),
           } as const as AskGraphAnsweredEvent);
         } catch (analyticsErr) {
@@ -257,6 +268,36 @@ export function useAskTheGraph(
       }
 
       const requestSubmissionTime = Date.now();
+      const { queryHash } = sanitizeSearchQuery(query);
+
+      // Phase 10.0a: Check session cache first
+      const cachedEntry = sessionCacheRef.current[queryHash];
+      if (cachedEntry && Date.now() < cachedEntry.expiresAt) {
+        setState({ query, loading: false, answer: cachedEntry.answer, error: null });
+
+        // Phase 10.0b: Log cache hit with observability
+        try {
+          const { sanitizedQuery, queryHash: hash } = sanitizeSearchQuery(query);
+          logSearchEvent({
+            type: 'ask_graph_answered',
+            sanitizedQuery,
+            queryHash: hash,
+            entity: '',
+            questionType: 'openai_synthesis',
+            answerLength: cachedEntry.answer.text.length,
+            citedNodeCount: cachedEntry.answer.citedNodes.length,
+            citedProjectCount: cachedEntry.answer.citedProjects.length,
+            answerConfidence: cachedEntry.answer.confidence,
+            requestId: cachedEntry.answer.requestId,
+            isCacheHit: true,
+            timestamp: Date.now(),
+          } as const as AskGraphAnsweredEvent);
+        } catch (analyticsErr) {
+          console.error('[AskTheGraph] Cache hit analytics error:', analyticsErr);
+        }
+        return;
+      }
+
       setState({ query, loading: true, answer: null, error: null });
 
       (async () => {
@@ -266,7 +307,7 @@ export function useAskTheGraph(
           // Try streaming path first if enabled
           if (useStreaming) {
             try {
-              await handleStreamingResponse(query, API_BASE, requestSubmissionTime);
+              await handleStreamingResponse(query, API_BASE, requestSubmissionTime, queryHash);
               return;
             } catch (streamErr) {
               console.warn('[AskTheGraph] Streaming failed, falling back to non-streaming:', streamErr);
@@ -338,9 +379,15 @@ export function useAskTheGraph(
             renderLatencyMs, // Step 5: Render latency for monitoring
           };
 
+          // Phase 10.0a: Cache the successful answer
+          sessionCacheRef.current[queryHash] = {
+            answer,
+            expiresAt: Date.now() + 300000, // 5 min TTL
+          };
+
           setState({ query, loading: false, answer, error: null });
 
-          // Step 4: Log analytics (Phase 8.2: Include instrumentation fields)
+          // Step 4: Log analytics (Phase 8.2: Include instrumentation fields; Phase 10.0b: Include cache hit status)
           try {
             const { sanitizedQuery, queryHash } = sanitizeSearchQuery(query);
 
@@ -362,6 +409,8 @@ export function useAskTheGraph(
               firstTokenLatencyMs: result.firstTokenLatencyMs,
               totalStreamDurationMs: result.totalStreamDurationMs,
               chunkCount: result.chunkCount,
+              // Phase 10.0b: Cache observability
+              isCacheHit: false,
               timestamp: Date.now(),
             } as const as AskGraphAnsweredEvent);
           } catch (analyticsErr) {
@@ -422,6 +471,13 @@ export function useAskTheGraph(
     },
     [state.query]
   );
+
+  // Phase 10.0a: Clear session cache on component unmount
+  useEffect(() => {
+    return () => {
+      sessionCacheRef.current = {};
+    };
+  }, []);
 
   return {
     ...state,
