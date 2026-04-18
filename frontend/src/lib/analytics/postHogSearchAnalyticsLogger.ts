@@ -39,6 +39,26 @@ interface SafeSearchAnalyticsEventPayload extends Record<string, unknown> {
   selectedType?: string;
   selectedRank?: number;
   sessionDurationMs?: number;
+  // Ask-the-Graph event fields
+  entity?: string;
+  questionType?: string;
+  attemptedQuestionType?: string;
+  reason?: string;
+  answerLength?: number;
+  citedNodeCount?: number;
+  citedProjectCount?: number;
+  answerConfidence?: 'high' | 'medium' | 'low';
+  requestId?: string;
+  model?: string;
+  usedStreaming?: boolean;
+  fallbackReason?: string;
+  firstTokenLatencyMs?: number;
+  totalStreamDurationMs?: number;
+  chunkCount?: number;
+  isCacheHit?: boolean;
+  itemId?: string;
+  itemType?: 'node' | 'project';
+  citationIndex?: number;
 }
 
 /**
@@ -107,6 +127,48 @@ function extractSafePayload(event: SearchAnalyticsEvent): SafeSearchAnalyticsEve
     safePayload.filterEntity = event.filterEntity;
     safePayload.resultCount = event.resultCount;
     safePayload.sessionDurationMs = event.sessionDurationMs;
+  } else if (event.type === 'ask_graph_submitted') {
+    safePayload.entity = event.entity;
+    safePayload.questionType = event.questionType;
+  } else if (event.type === 'ask_graph_answered') {
+    safePayload.entity = event.entity;
+    safePayload.questionType = event.questionType;
+    safePayload.answerLength = event.answerLength;
+    safePayload.citedNodeCount = event.citedNodeCount;
+    safePayload.citedProjectCount = event.citedProjectCount;
+    safePayload.answerConfidence = event.answerConfidence;
+    if ('requestId' in event && event.requestId) {
+      safePayload.requestId = event.requestId;
+    }
+    if ('model' in event && event.model) {
+      safePayload.model = event.model;
+    }
+    if ('usedStreaming' in event && event.usedStreaming !== undefined) {
+      safePayload.usedStreaming = event.usedStreaming;
+    }
+    if ('fallbackReason' in event && event.fallbackReason) {
+      safePayload.fallbackReason = event.fallbackReason;
+    }
+    if ('firstTokenLatencyMs' in event && event.firstTokenLatencyMs !== undefined) {
+      safePayload.firstTokenLatencyMs = event.firstTokenLatencyMs;
+    }
+    if ('totalStreamDurationMs' in event && event.totalStreamDurationMs !== undefined) {
+      safePayload.totalStreamDurationMs = event.totalStreamDurationMs;
+    }
+    if ('chunkCount' in event && event.chunkCount !== undefined) {
+      safePayload.chunkCount = event.chunkCount;
+    }
+    if ('isCacheHit' in event && event.isCacheHit !== undefined) {
+      safePayload.isCacheHit = event.isCacheHit;
+    }
+  } else if (event.type === 'ask_graph_no_answer') {
+    safePayload.entity = event.entity;
+    safePayload.attemptedQuestionType = event.attemptedQuestionType;
+    safePayload.reason = event.reason;
+  } else if (event.type === 'ask_graph_evidence_clicked') {
+    safePayload.itemId = event.itemId;
+    safePayload.itemType = event.itemType;
+    safePayload.citationIndex = event.citationIndex;
   }
 
   return safePayload;
