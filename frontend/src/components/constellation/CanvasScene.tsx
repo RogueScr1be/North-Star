@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { RenderableGraph } from '../../lib/graph/graphTransforms';
 import { computeGraphBounds, computeCameraParams, CameraParams } from '../../lib/graph/graphBounds';
 import { GraphCamera } from './GraphCamera';
+import { PersonNode } from './PersonNode';
 import {
   HighlightState,
   CitedState,
@@ -25,6 +26,7 @@ interface CanvasSceneProps {
   onUnresolvedEdgesChange?: (count: number) => void;
   onNodeClick?: (node: GraphNode) => void;
   onProjectClick?: (project: GraphProject) => void;
+  onPersonClick?: () => void; // Person node at origin selection (render-layer synthetic)
   onCanvasClick?: () => void; // Deselect on empty canvas click
   highlightState?: HighlightState; // Phase 2.4: selection highlight state
   semanticVisibility?: SemanticVisibility | null; // Phase 5.5: semantic filtering
@@ -822,6 +824,38 @@ function PickableProjects({
   );
 }
 
+/**
+ * PickablePerson: Invisible mesh layer for person node click detection (Phase 10.0b: Origin Constellation)
+ * Makes the central person node clickable and selectable
+ * Provides cursor feedback on hover
+ * Routes through existing selection system
+ */
+function PickablePerson({
+  onPersonClick,
+}: {
+  onPersonClick?: () => void;
+}) {
+  return (
+    <mesh
+      position={[0, 0, 0]}
+      onPointerEnter={() => {
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerLeave={() => {
+        document.body.style.cursor = 'auto';
+      }}
+      onPointerUp={(e) => {
+        e.stopPropagation();
+        onPersonClick?.();
+      }}
+    >
+      {/* Hit sphere: 3.0 + buffer for comfort */}
+      <sphereGeometry args={[3.5, 8, 8]} />
+      <meshBasicMaterial colorWrite={false} depthTest={false} />
+    </mesh>
+  );
+}
+
 
 /**
  * SceneContent: Inner scene with all graph geometry
@@ -832,6 +866,7 @@ function SceneContent({
   onUnresolvedEdgesChange,
   onNodeClick,
   onProjectClick,
+  onPersonClick,
   highlightState,
   semanticVisibility,
   selectedNodeId,
@@ -847,6 +882,7 @@ function SceneContent({
   onUnresolvedEdgesChange?: (count: number) => void;
   onNodeClick?: (node: GraphNode) => void;
   onProjectClick?: (project: GraphProject) => void;
+  onPersonClick?: () => void;
   highlightState?: HighlightState;
   semanticVisibility?: SemanticVisibility | null;
   selectedNodeId?: string | null;
@@ -931,6 +967,9 @@ function SceneContent({
       {/* <fog attach="fog" args={['#000000', 20, 150]} /> */}
       <StarField />
 
+      {/* Origin constellation (Phase 10.0b: Central person node) */}
+      <PersonNode />
+
       {/* Geometry */}
       <EdgesLineSegments graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} citedState={citedState} />
       <NodesPoints graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} />
@@ -945,6 +984,7 @@ function SceneContent({
       <NodeLabels graph={graph} selectedNodeId={selectedNodeId} />
 
       {/* Interactive picking layer */}
+      <PickablePerson onPersonClick={onPersonClick} />
       <PickableNodes graph={graph} onNodeClick={onNodeClick} semanticVisibility={semanticVisibility} />
       <PickableProjects graph={graph} onProjectClick={onProjectClick} semanticVisibility={semanticVisibility} />
 
@@ -966,6 +1006,7 @@ export function CanvasScene({
   onUnresolvedEdgesChange,
   onNodeClick,
   onProjectClick,
+  onPersonClick,
   onCanvasClick,
   highlightState,
   semanticVisibility,
@@ -1038,6 +1079,7 @@ export function CanvasScene({
         onUnresolvedEdgesChange={onUnresolvedEdgesChange}
         onNodeClick={onNodeClick}
         onProjectClick={onProjectClick}
+        onPersonClick={onPersonClick}
         highlightState={highlightState}
         semanticVisibility={semanticVisibility}
         selectedNodeId={selectedNodeId}
