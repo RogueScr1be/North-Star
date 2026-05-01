@@ -13,6 +13,7 @@ import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { SelectedItem } from '../../hooks/useSelection';
+import { getRenderedPosition } from '../../lib/graph/renderedPositions';
 import * as THREE from 'three';
 import './BillboardedPanel.css';
 
@@ -160,18 +161,21 @@ export function BillboardedPanel({
 
   const item = selectedItem.data as any;
 
-  // Get position from data (added by RenderableGraph transformation)
-  // Supports both nodes (x, y, z) and projects (x_derived, y_derived, z_derived)
-  const x = 'x' in item ? item.x : (item.x_derived ?? 0);
-  const y = 'y' in item ? item.y : (item.y_derived ?? 0);
-  const z = 'z' in item ? item.z : (item.z_derived ?? 0);
+  // Get rendered position (accounts for spatial expansion)
+  // Anchors billboard at the same position as visible geometry
+  const itemType = selectedItem.type === 'node' ? 'node' : 'project';
+  const renderedPosition = getRenderedPosition(item, itemType, { applyExpansion: true });
+
+  if (!renderedPosition) {
+    return null;
+  }
 
   return (
     <BillboardPanelContent
       selectedItem={selectedItem}
       onClose={onClose}
       onOpenMorePanel={onOpenMorePanel}
-      position={[x, y, z]}
+      position={renderedPosition}
     />
   );
 }
