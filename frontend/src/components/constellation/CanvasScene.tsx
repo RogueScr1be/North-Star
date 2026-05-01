@@ -259,15 +259,24 @@ function ProjectsPoints({
 
       // STEP 4: Determine opacity based on semantic filter and selection
       let opacity = 1.0;
-      if (hasSemanticFilter && !selectedId) {
-        // For projects, dimming is less aggressive (all visible projects are important)
-        opacity = 1.0; // Projects remain full opacity even with semantic filters
-      } else if (hasSemanticFilter && selectedId && visibleProjects[i].id !== selectedId) {
-        // Selection with semantic filter: only selected project is full opacity
-        opacity = 0.5; // Other projects dimmed
+      const focusDimmingEnabled = import.meta.env.VITE_FOCUS_DIMMING_ENABLED !== 'false';
+      const projId = visibleProjects[i].id;
+
+      // Phase 4B: Focus dimming for projects
+      if (focusDimmingEnabled && selectedId && projId !== selectedId) {
+        const highlightRole = highlightState?.selectedRole?.get(projId) || 'default';
+        if (highlightRole === 'adjacent') {
+          opacity = 0.65;
+        } else {
+          opacity = 0.18;
+        }
+      } else if (hasSemanticFilter && !selectedId) {
+        opacity = 1.0;
+      } else if (hasSemanticFilter && selectedId && projId !== selectedId) {
+        opacity = 0.55; // Slightly higher opacity for better anchor visibility
       }
 
-      col[i * 4 + 3] = Math.max(0.35, opacity); // STEP 4: Opacity floor 0.35
+      col[i * 4 + 3] = Math.max(0.12, opacity); // Phase 4B: Opacity floor raised to 0.12
     }
     return col;
   }, [visibleProjects, semanticVisibility, highlightState, selectedProjectId]);
@@ -571,6 +580,8 @@ function EdgesLineSegments({
     if (visibleEdges.length === 0) return new Float32Array();
 
     const col = new Float32Array(visibleEdges.length * 8); // 2 vertices × 4 components (RGBA)
+    const focusDimmingEnabled = import.meta.env.VITE_FOCUS_DIMMING_ENABLED !== 'false';
+    const selectedId = highlightState?.selectedId;
 
     for (let i = 0; i < visibleEdges.length; i++) {
       const edge = visibleEdges[i];
@@ -583,10 +594,13 @@ function EdgesLineSegments({
         ? [0.0, 1.0, 1.0] // Connected: bright cyan, clearly highlights active paths
         : [0.1, 0.3, 0.4]; // Unrelated: dim cyan-blue, atmospheric filament feel
 
-      // Phase 7.2: Increased opacity for connected edges
+      // Phase 4B: Focus dimming for edges
       // Connected edges: high visibility (0.95) to emphasize semantic connectivity
-      // Unrelated edges: minimal visibility (0.16) for structure only
+      // Unrelated edges: minimal visibility (0.16) normally, 0.08 when focus dimming active
       let opacity = isConnected ? 0.95 : 0.16;
+      if (focusDimmingEnabled && selectedId && !isConnected) {
+        opacity = 0.08; // Phase 4B: Dim unrelated edges when selection is active
+      }
 
       // Both vertices get same color with opacity
       col[i * 8] = r;
