@@ -14,7 +14,7 @@ import { useGraphSemantics } from '../hooks/useGraphSemantics';
 // import { useD3Force } from '../hooks/useD3Force'; // Phase 8.0: D3 shelved, moved to dormant state
 import { transformGraphToRenderable, logGraphDiagnostics } from '../lib/graph/graphTransforms';
 import { computeHighlightState, CitedState } from '../lib/graph/highlighting';
-import { computeFocusTarget, animateCamera } from '../lib/graph/cameraFocus';
+import { computeFocusTarget, animateCamera, buildFramingPositions } from '../lib/graph/cameraFocus';
 import { CanvasScene } from '../components/constellation/CanvasScene';
 import { SelectionPanel } from '../components/constellation/SelectionPanel';
 import { CSS3DPanelAnchor } from '../components/constellation/CSS3DPanelAnchor';
@@ -575,58 +575,15 @@ export const ConstellationCanvas: React.FC = () => {
     isAnimatingRef.current = true;
 
     // Phase 3.4: Build framing positions (selected entity + connected entities)
-    // For nodes: include connected projects
-    // For projects: include high-signal nodes
-    const framingPositions: THREE.Vector3[] = [];
-
-    if (selectedItem.type === 'node') {
-      const selectedNode = renderableGraph.nodes.find(n => n.id === selectedItem.data.id);
-      if (selectedNode) {
-        framingPositions.push(new THREE.Vector3(selectedNode.x, selectedNode.y, 0));
-
-        // Find and add connected projects
-        const connectedProjectIds = new Set<string>();
-        for (const edge of data.edges) {
-          let connectedNodeId: string | null = null;
-
-          if (edge.source_id === selectedNode.id) {
-            connectedNodeId = edge.target_id;
-          }
-          if (edge.target_id === selectedNode.id) {
-            connectedNodeId = edge.source_id;
-          }
-
-          if (connectedNodeId) {
-            const connectedNode = renderableGraph.nodes.find(n => n.id === connectedNodeId);
-            if (connectedNode && connectedNode.project_id) {
-              connectedProjectIds.add(connectedNode.project_id);
-            }
-          }
-        }
-
-        for (const project of renderableGraph.projects) {
-          if (connectedProjectIds.has(project.id)) {
-            framingPositions.push(new THREE.Vector3(project.x_derived, project.y_derived, 0));
-          }
-        }
-      }
-    } else {
-      // Project selection
-      const selectedProject = renderableGraph.projects.find(p => p.id === selectedItem.data.id);
-      if (selectedProject) {
-        framingPositions.push(new THREE.Vector3(selectedProject.x_derived, selectedProject.y_derived, 0));
-
-        // Add high-signal nodes in this project (up to 3)
-        const projectNodes = renderableGraph.nodes
-          .filter(n => n.project_id === selectedProject.id)
-          .sort((a, b) => (b.gravity_score || 0) - (a.gravity_score || 0))
-          .slice(0, 3);
-
-        for (const node of projectNodes) {
-          framingPositions.push(new THREE.Vector3(node.position[0], node.position[1], 0));
-        }
-      }
-    }
+    // Phase 5.0b: Use canonical rendered positions for camera focus alignment
+    const framingPositions = buildFramingPositions(
+      selectedItem.data.id,
+      selectedItem.type,
+      renderableGraph.nodes,
+      renderableGraph.projects,
+      data.edges,
+      { applyExpansion: true }
+    );
 
     // If no positions found, abort
     if (framingPositions.length === 0) {

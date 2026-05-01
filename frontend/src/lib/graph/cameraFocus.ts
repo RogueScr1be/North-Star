@@ -13,6 +13,7 @@
 
 import * as THREE from 'three';
 import { GraphNode, GraphProject, GraphEdge } from './graphTypes';
+import { getRenderedPosition } from './renderedPositions';
 
 /**
  * Phase 3.4: Enhanced framing with smart zoom calculation
@@ -192,13 +193,20 @@ export function findHighSignalNodes(
  * Phase 3.4: Build framing positions for entity selection
  * For nodes: include node + connected projects
  * For projects: include project + high-signal nodes
+ *
+ * Phase 5.0b: Uses canonical rendered positions (with spatial expansion)
+ * instead of raw coordinates for correct camera framing alignment.
  */
 export function buildFramingPositions(
   selectedId: string,
   selectedType: 'node' | 'project',
   nodes: GraphNode[],
   projects: GraphProject[],
-  edges: GraphEdge[]
+  edges: GraphEdge[],
+  options: {
+    applyExpansion?: boolean;
+    d3Positions?: Map<string, [number, number]>;
+  } = { applyExpansion: true }
 ): THREE.Vector3[] {
   const positions: THREE.Vector3[] = [];
 
@@ -206,24 +214,36 @@ export function buildFramingPositions(
     // Frame: selected node + its directly connected projects
     const selectedNode = nodes.find(n => n.id === selectedId);
     if (selectedNode) {
-      positions.push(new THREE.Vector3(selectedNode.x, selectedNode.y, 0));
+      const rendered = getRenderedPosition(selectedNode, 'node', options);
+      if (rendered) {
+        positions.push(new THREE.Vector3(...rendered));
+      }
 
       // Add connected projects
       const connectedProjects = findConnectedProjects(selectedId, edges, nodes, projects);
       for (const project of connectedProjects) {
-        positions.push(new THREE.Vector3(project.x_derived, project.y_derived, 0));
+        const rendered = getRenderedPosition(project, 'project', options);
+        if (rendered) {
+          positions.push(new THREE.Vector3(...rendered));
+        }
       }
     }
   } else {
     // Frame: selected project + high-signal nodes in it
     const selectedProject = projects.find(p => p.id === selectedId);
     if (selectedProject) {
-      positions.push(new THREE.Vector3(selectedProject.x_derived, selectedProject.y_derived, 0));
+      const rendered = getRenderedPosition(selectedProject, 'project', options);
+      if (rendered) {
+        positions.push(new THREE.Vector3(...rendered));
+      }
 
       // Add high-signal nodes (up to 3)
       const highSignalNodes = findHighSignalNodes(selectedId, nodes, 3);
       for (const node of highSignalNodes) {
-        positions.push(new THREE.Vector3(node.x, node.y, 0));
+        const rendered = getRenderedPosition(node, 'node', options);
+        if (rendered) {
+          positions.push(new THREE.Vector3(...rendered));
+        }
       }
     }
   }
