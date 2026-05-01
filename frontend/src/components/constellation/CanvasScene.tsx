@@ -195,12 +195,10 @@ function NodesGeometries({
  */
 function ProjectsPoints({
   graph,
-  highlightState,
   semanticVisibility,
   selectedProjectId,
 }: {
   graph: RenderableGraph;
-  highlightState?: HighlightState;
   semanticVisibility?: SemanticVisibility | null;
   selectedProjectId?: string | null;
 }) {
@@ -232,13 +230,11 @@ function ProjectsPoints({
     return pos;
   }, [visibleProjects]);
 
-  // STEP 4: Create color array with RGBA (adding opacity for semantic dimming)
+  // STEP 4: Create color array with RGBA (projects always remain visible as structural anchors)
   const colors = useMemo(() => {
     if (visibleProjects.length === 0) return new Float32Array();
 
     const col = new Float32Array(visibleProjects.length * 4);
-    const hasSemanticFilter = semanticVisibility && semanticVisibility.reason !== 'all';
-    const selectedId = highlightState?.selectedId;
 
     for (let i = 0; i < visibleProjects.length; i++) {
       // STEP 2: Strong project anchor color (pure magenta for maximum saturation)
@@ -257,29 +253,13 @@ function ProjectsPoints({
       col[i * 4 + 1] = g;
       col[i * 4 + 2] = b;
 
-      // STEP 4: Determine opacity based on semantic filter and selection
-      let opacity = 1.0;
-      const focusDimmingEnabled = import.meta.env.VITE_FOCUS_DIMMING_ENABLED !== 'false';
-      const projId = visibleProjects[i].id;
-
-      // Phase 4B: Focus dimming for projects
-      if (focusDimmingEnabled && selectedId && projId !== selectedId) {
-        const highlightRole = highlightState?.selectedRole?.get(projId) || 'default';
-        if (highlightRole === 'adjacent') {
-          opacity = 0.65;
-        } else {
-          opacity = 0.18;
-        }
-      } else if (hasSemanticFilter && !selectedId) {
-        opacity = 1.0;
-      } else if (hasSemanticFilter && selectedId && projId !== selectedId) {
-        opacity = 0.55; // Slightly higher opacity for better anchor visibility
-      }
-
-      col[i * 4 + 3] = Math.max(0.12, opacity); // Phase 4B: Opacity floor raised to 0.12
+      // STEP 4: Projects are structural anchors — always keep them at full opacity
+      // Phase 5.0c: Removed focus dimming for projects; they should never disappear
+      // when nodes are selected (unlike content nodes which can be dimmed)
+      col[i * 4 + 3] = 1.0;
     }
     return col;
-  }, [visibleProjects, semanticVisibility, highlightState, selectedProjectId]);
+  }, [visibleProjects, selectedProjectId]);
 
   // Create size array for visible projects (Phase A: premium anchor sizing for visibility)
   const sizes = useMemo(() => {
@@ -1040,7 +1020,7 @@ function SceneContent({
       {/* Geometry */}
       <EdgesLineSegments graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} citedState={citedState} />
       <NodesGeometries graph={graph} onNodeClick={onNodeClick} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedNodeId={selectedNodeId} citedState={citedState} />
-      <ProjectsPoints graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedProjectId={selectedProjectId} />
+      <ProjectsPoints graph={graph} semanticVisibility={semanticVisibility} selectedProjectId={selectedProjectId} />
 
       {/* Phase A: Hybrid anchor rendering (torus rings + glow sprites) */}
       <ProjectTorusRings graph={graph} semanticVisibility={semanticVisibility} />
