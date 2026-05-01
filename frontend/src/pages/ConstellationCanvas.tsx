@@ -103,6 +103,34 @@ export const ConstellationCanvas: React.FC = () => {
   // Phase D: Readiness flags for canonical framing capture (prevents circular dependency)
   const [controlsReady, setControlsReady] = useState(false);
 
+  // Phase 4C: Gesture cancellation — stop animation when user interacts with controls
+  useEffect(() => {
+    if (!cameraControlsRef.current || !controlsReady) {
+      return;
+    }
+
+    const controls = cameraControlsRef.current;
+
+    // Handler: Cancel animation on user gesture (pointer, wheel, pan)
+    const handleControlsChange = () => {
+      if (isAnimatingRef.current && activeAnimationCleanupRef.current) {
+        console.log('[ConstellationCanvas] User gesture detected, cancelling camera animation');
+        activeAnimationCleanupRef.current();
+        activeAnimationCleanupRef.current = null;
+        isAnimatingRef.current = false;
+        // Note: Do NOT clear selectedItem or close billboard — just stop animation
+      }
+    };
+
+    // Attach listener to controls change event (fires on pointer down, wheel, pan)
+    controls.addEventListener('change', handleControlsChange);
+
+    // Cleanup: remove listener on unmount or controls reset
+    return () => {
+      controls.removeEventListener('change', handleControlsChange);
+    };
+  }, [controlsReady]);
+
   // Phase 3.3: Project focus controls - project cycling
   const [availableProjects, setAvailableProjects] = useState<HeroItem[]>([]);
   const [projectIndex, setProjectIndex] = useState(0);
@@ -525,7 +553,14 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Phase 3.4: Auto-focus camera on selection with smart framing
   // Watches selectedItem and triggers smooth camera animation to focus on selected entity + connected entities
+  // Phase 4C: Gated focus camera on selection (conditional on feature flag)
   useEffect(() => {
+    // Gate: only run auto-focus if feature flag is enabled
+    const focusCameraEnabled = import.meta.env.VITE_FOCUS_CAMERA_ON_SELECTION === 'true';
+    if (!focusCameraEnabled) {
+      return;
+    }
+
     if (!selectedItem || !renderableGraph || !data || !cameraRef.current || !cameraControlsRef.current) {
       return;
     }
@@ -620,10 +655,11 @@ export const ConstellationCanvas: React.FC = () => {
       cleanup();
     };
 
-    console.log('[ConstellationCanvas] Auto-focus on selection (Phase 3.4 framing):', {
+    console.log('[ConstellationCanvas] Auto-focus on selection (Phase 4C gated):', {
       selectedId: selectedItem.data.id,
       type: selectedItem.type,
       framingCount: framingPositions.length,
+      focusCameraEnabled,
     });
   }, [selectedItem?.data.id, selectedItem?.type, renderableGraph, data]);
 
