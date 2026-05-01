@@ -23,11 +23,13 @@ import {
   HighlightState,
   CitedState,
   getNodeTypeColor,
+  HighlightRole,
 } from '../../lib/graph/highlighting';
 import { GraphNode, GraphProject } from "../../lib/graph/graphTypes";
 import type { SemanticVisibility } from '../../lib/graph/graphSemantics';
 import { D3SettledPositions } from '../../lib/graph/d3SimulationEngine';
 import { logNodeSelected, logProjectSelected } from '../../lib/analytics/constellationAnalytics';
+import { PulsarNodeGeometry } from './PulsarNodeGeometry';
 
 interface Constellation3DSceneProps {
   graph: RenderableGraph;
@@ -49,6 +51,8 @@ interface Constellation3DSceneProps {
   onCancelAnimation?: () => void;
   isAnimatingRef?: React.MutableRefObject<boolean>;
   highlightSearchResultId?: string | null;
+  billboardOpen?: boolean;
+  onCloseBillboard?: () => void;
 }
 
 /**
@@ -176,15 +180,25 @@ function NodesPoints({
       col[i * 4 + 1] = finalColor[1];
       col[i * 4 + 2] = finalColor[2];
 
-      // Phase 1: Refined opacity values (slightly higher for better visibility)
+      // Workstream 3: Focus Dimming + Semantic Filter Opacity
       let opacity = 1.0;
-      if (hasSemanticFilter && !selectedId) {
-        opacity = isSubgraphMode ? 0.65 : 1.0; // Slightly less dim in subgraph mode
+
+      // Apply focus dimming if enabled and a node is selected
+      const focusDimmingEnabled = import.meta.env.VITE_FOCUS_DIMMING_ENABLED !== 'false';
+      if (focusDimmingEnabled && selectedId && node.id !== selectedId) {
+        const highlightRole = highlightState?.selectedRole?.get(node.id) || 'default';
+        if (highlightRole === 'adjacent') {
+          opacity = 0.65; // Adjacent nodes remain moderately visible
+        } else {
+          opacity = 0.18; // Unrelated nodes significantly dim
+        }
+      } else if (hasSemanticFilter && !selectedId) {
+        opacity = isSubgraphMode ? 0.65 : 1.0;
       } else if (hasSemanticFilter && selectedId && node.id !== selectedId) {
-        opacity = 0.55; // Slightly higher non-selected opacity
+        opacity = 0.55;
       }
 
-      col[i * 4 + 3] = Math.max(0.35, opacity);
+      col[i * 4 + 3] = Math.max(0.12, opacity);
     }
     return col;
   }, [visibleNodes, semanticVisibility, highlightState, highlightSearchResultId, citedState]);
@@ -316,13 +330,24 @@ function ProjectsPoints({
       col[i * 4 + 2] = b;
 
       let opacity = 1.0;
-      if (hasSemanticFilter && !selectedId) {
+      const focusDimmingEnabled = import.meta.env.VITE_FOCUS_DIMMING_ENABLED !== 'false';
+      const projId = visibleProjects[i].id;
+
+      // Phase 4B: Focus dimming for projects
+      if (focusDimmingEnabled && selectedId && projId !== selectedId) {
+        const highlightRole = highlightState?.selectedRole?.get(projId) || 'default';
+        if (highlightRole === 'adjacent') {
+          opacity = 0.65;
+        } else {
+          opacity = 0.18;
+        }
+      } else if (hasSemanticFilter && !selectedId) {
         opacity = 1.0;
-      } else if (hasSemanticFilter && selectedId && visibleProjects[i].id !== selectedId) {
+      } else if (hasSemanticFilter && selectedId && projId !== selectedId) {
         opacity = 0.55; // Slightly higher opacity for better anchor visibility
       }
 
-      col[i * 4 + 3] = Math.max(0.35, opacity);
+      col[i * 4 + 3] = Math.max(0.12, opacity);
     }
     return col;
   }, [visibleProjects, semanticVisibility, highlightState, highlightSearchResultId, citedState]);
@@ -617,6 +642,13 @@ function EdgesLineSegments({
         opacity = 0.08;
       }
 
+      // Phase 4B: Focus dimming for edges
+      const focusDimmingEnabled = import.meta.env.VITE_FOCUS_DIMMING_ENABLED !== 'false';
+      const selectedId = highlightState?.selectedId;
+      if (focusDimmingEnabled && selectedId && !isConnected) {
+        opacity = 0.08;
+      }
+
       col[i * 8] = r;
       col[i * 8 + 1] = g;
       col[i * 8 + 2] = b;
@@ -876,6 +908,63 @@ function PickableProjects({
 }
 
 /**
+ * Phase 4B: NodeGeometryComponents - Render individual Pulsar node geometries when enabled
+ */
+function NodeGeometryComponents({
+  graph,
+  highlightState,
+  semanticVisibility,
+  selectedNodeId,
+  citedState,
+  onNodeClick,
+}: {
+  graph: RenderableGraph;
+  highlightState?: HighlightState;
+  semanticVisibility?: SemanticVisibility | null;
+  selectedNodeId?: string | null;
+  citedState?: CitedState;
+  onNodeClick?: (node: GraphNode) => void;
+}) {
+  const pulsarEnabled = import.meta.env.VITE_PULSAR_NODES_ENABLED !== 'false';
+
+  if (!pulsarEnabled) {
+    return null;
+  }
+
+  const visibleNodes = useMemo(() => {
+    if (!semanticVisibility) {
+      return graph.nodes;
+    }
+    return graph.nodes.filter(node => semanticVisibility.visibleNodeIds.has(node.id));
+  }, [graph.nodes, semanticVisibility]);
+
+  const getNodeHighlightRole = (nodeId: string): HighlightRole => {
+    if (!highlightState) return 'default';
+    return highlightState.selectedRole.get(nodeId) ?? 'default';
+  };
+
+  const isNodeCited = (nodeId: string): boolean => {
+    return citedState?.citedNodeIds?.has(nodeId) ?? false;
+  };
+
+  return (
+    <>
+      {visibleNodes.map((node) => (
+        <PulsarNodeGeometry
+          key={`pulsar-node-${node.id}`}
+          node={node}
+          highlightRole={getNodeHighlightRole(node.id)}
+          isAnswerActive={citedState ? true : false}
+          selectedNodeId={selectedNodeId}
+          onNodeClick={onNodeClick}
+          isCited={isNodeCited(node.id)}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
  * SceneContent: Inner scene with all graph geometry
  */
 function SceneContent({
@@ -913,6 +1002,15 @@ function SceneContent({
   onCameraReady?: (camera: any) => void;
   onControlsReady?: (controls: any) => void;
 }) {
+  // Disable raycasting on background plane to allow clicks to pass through to nodes/projects
+  const bgPlane1Ref = useRef<THREE.Mesh>(null);
+
+  useEffect(() => {
+    if (bgPlane1Ref.current) {
+      bgPlane1Ref.current.raycast = () => {};
+    }
+  }, []);
+
   useEffect(() => {
     onUnresolvedEdgesChange?.(graph.unresolved_edges.length);
   }, [graph, onUnresolvedEdgesChange]);
@@ -938,6 +1036,7 @@ function SceneContent({
 
       <EdgesLineSegments graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} citedState={citedState} />
       <NodesPoints graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} layoutEngine={layoutEngine} d3Positions={d3Positions} citedState={citedState} />
+      <NodeGeometryComponents graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedNodeId={selectedNodeId} citedState={citedState} onNodeClick={onNodeClick} />
       <ProjectsPoints graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} layoutEngine={layoutEngine} d3Positions={d3Positions} citedState={citedState} />
 
       <ProjectTorusRings graph={graph} semanticVisibility={semanticVisibility} layoutEngine={layoutEngine} d3Positions={d3Positions} />
@@ -949,9 +1048,9 @@ function SceneContent({
       <PickableNodes graph={graph} onNodeClick={onNodeClick} semanticVisibility={semanticVisibility} layoutEngine={layoutEngine} d3Positions={d3Positions} />
       <PickableProjects graph={graph} onProjectClick={onProjectClick} semanticVisibility={semanticVisibility} layoutEngine={layoutEngine} d3Positions={d3Positions} />
 
-      <mesh position={[0, 0, -10]} scale={[10000, 10000, 1]} onPointerUp={(e) => e.stopPropagation()}>
+      <mesh ref={bgPlane1Ref} position={[0, 0, -10]} scale={[10000, 10000, 1]} onPointerUp={(e) => e.stopPropagation()}>
         <planeGeometry />
-        <meshBasicMaterial transparent opacity={0} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </>
   );
@@ -980,6 +1079,15 @@ export function Constellation3DScene({
   onCancelAnimation,
   isAnimatingRef,
 }: Constellation3DSceneProps) {
+  // Disable raycasting on background plane to allow clicks to pass through to nodes/projects
+  const bgPlane2Ref = useRef<THREE.Mesh>(null);
+
+  useEffect(() => {
+    if (bgPlane2Ref.current) {
+      bgPlane2Ref.current.raycast = () => {};
+    }
+  }, []);
+
   const { cameraParams } = useMemo(() => {
     const b = computeGraphBounds(graph);
     const aspect = typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 1.6;
@@ -1045,9 +1153,9 @@ export function Constellation3DScene({
       />
 
       {onCanvasClick && (
-        <mesh position={[0, 0, -100]} scale={[10000, 10000, 1]} onPointerUp={onCanvasClick}>
+        <mesh ref={bgPlane2Ref} position={[0, 0, -100]} scale={[10000, 10000, 1]} onPointerUp={onCanvasClick}>
           <planeGeometry />
-          <meshBasicMaterial transparent opacity={0} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       )}
     </Canvas>

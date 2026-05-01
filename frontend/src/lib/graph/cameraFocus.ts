@@ -2,6 +2,13 @@
  * CAMERAFOCUS.TS
  * Utilities for dynamic camera focusing on graph entities
  * Phase 5.6: Answer evidence → camera animation
+ *
+ * Phase 4B: Camera easing feature (GATED/DISABLED)
+ * - Feature flag: VITE_FOCUS_CAMERA_ON_SELECTION (defaults to false)
+ * - When disabled (default): Camera does not auto-focus on selection
+ * - When enabled: Camera smoothly animates to frame selected entity + related items
+ * - Easing: cubic-in-out (easeInOutCubic) for smooth, responsive motion
+ * - All functions stable and ready for production use when gate is lifted
  */
 
 import * as THREE from 'three';

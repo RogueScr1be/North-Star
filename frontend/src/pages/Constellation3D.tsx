@@ -37,6 +37,33 @@ export const Constellation3D: React.FC = () => {
 
   useNavigationMemory({ selectedItem });
 
+  // Phase 3: Separate state for billboard and side panel persistence
+  const [billboardOpen, setBillboardOpen] = useState(false);
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+
+  // Handle node selection with billboard open
+  const handleSelectNode = React.useCallback((node: any) => {
+    selectNode(node);
+    setBillboardOpen(true);
+    setSidePanelOpen(false);
+  }, [selectNode]);
+
+  // Handle project selection with billboard open
+  const handleSelectProject = React.useCallback((project: any) => {
+    selectProject(project);
+    setBillboardOpen(true);
+    setSidePanelOpen(false);
+  }, [selectProject]);
+
+  // Close billboard and panels
+  const handleCloseBillboard = React.useCallback(() => {
+    console.log('[INSTRUMENT] Billboard close triggered');
+    setBillboardOpen(false);
+    setSidePanelOpen(false);
+    clearSelection();
+  }, [clearSelection]);
+
+
   // Phase 1: Static layout engine = 'api' (no D3)
   const layoutEngine = 'api' as const;
 
@@ -251,9 +278,9 @@ export const Constellation3D: React.FC = () => {
       <Constellation3DScene
         graph={renderableGraph}
         onUnresolvedEdgesChange={setUnresolvedEdgesCount}
-        onNodeClick={selectNode}
-        onProjectClick={selectProject}
-        onCanvasClick={clearSelection}
+        onNodeClick={handleSelectNode}
+        onProjectClick={handleSelectProject}
+        onCanvasClick={undefined}
         highlightState={highlightState}
         semanticVisibility={semanticVisibility}
         selectedNodeId={selectedItem?.type === 'node' ? selectedItem.data.id : undefined}
@@ -272,9 +299,13 @@ export const Constellation3D: React.FC = () => {
           }
         }}
         highlightSearchResultId={highlightSearchResultId}
+        billboardOpen={billboardOpen}
+        onCloseBillboard={handleCloseBillboard}
       />
 
-      <SelectionPanel selectedItem={selectedItem} onClose={clearSelection} />
+      {sidePanelOpen && selectedItem && (
+        <SelectionPanel selectedItem={selectedItem} onClose={() => setSidePanelOpen(false)} />
+      )}
 
       <AskTheGraphPanel
         nodes={data?.nodes ?? []}

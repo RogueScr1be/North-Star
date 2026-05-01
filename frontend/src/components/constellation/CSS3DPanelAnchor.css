@@ -1,0 +1,187 @@
+/**
+ * CSS3DPANELANCHOR.CSS
+ * Phase 3: CSS3D/DOM anchored panels positioned in 3D screen space
+ * Dark theme with neon accents, fixed positioning, pointer-events isolation
+ */
+
+.css3d-panel {
+  position: fixed;
+  background: rgba(10, 14, 27, 0.95);
+  border: 1px solid rgba(0, 255, 200, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 200, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 900; /* Below SelectionPanel (1000), above canvas (0) */
+  backdrop-filter: blur(10px);
+  max-width: 320px;
+  min-width: 240px;
+  pointer-events: auto;
+}
+
+/* Backdrop: absorb clicks outside content */
+.css3d-panel-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Content container: only content receives pointer events */
+.css3d-panel-content {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.css3d-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 255, 200, 0.1);
+  background: linear-gradient(90deg, rgba(0, 255, 200, 0.03) 0%, rgba(255, 0, 200, 0.02) 100%);
+  flex-shrink: 0;
+}
+
+.css3d-panel-title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0; /* Allow flex shrink for long titles */
+}
+
+.css3d-panel-type-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  background-color: rgba(26, 188, 156, 0.2); /* Teal default */
+  color: rgba(26, 188, 156, 0.9);
+  border: 1px solid rgba(26, 188, 156, 0.3);
+}
+
+.css3d-panel-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  word-break: break-word;
+  flex: 1;
+}
+
+.css3d-panel-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.css3d-panel-close:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.css3d-panel-close:active {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.css3d-panel-description {
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 255, 200, 0.05);
+}
+
+.css3d-panel-description p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.css3d-panel-tags {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 255, 200, 0.05);
+}
+
+.css3d-panel-tags-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.css3d-panel-tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.css3d-panel-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: rgba(0, 255, 200, 0.1);
+  color: rgba(0, 255, 200, 0.8);
+  border: 1px solid rgba(0, 255, 200, 0.2);
+  border-radius: 4px;
+  font-size: 12px;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.css3d-panel-id {
+  padding: 12px 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  border-top: 1px solid rgba(0, 255, 200, 0.05);
+  flex-shrink: 0;
+}
+
+.css3d-panel-id code {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  color: rgba(0, 255, 200, 0.5);
+  word-break: break-all;
+}
+
+/* Scrollbar styling for content area */
+.css3d-panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.css3d-panel-content::-webkit-scrollbar-track {
+  background: rgba(0, 255, 200, 0.03);
+}
+
+.css3d-panel-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 200, 0.2);
+  border-radius: 3px;
+}
+
+.css3d-panel-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 200, 0.4);
+}

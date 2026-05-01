@@ -17,6 +17,7 @@ import { computeHighlightState, CitedState } from '../lib/graph/highlighting';
 import { computeFocusTarget, animateCamera } from '../lib/graph/cameraFocus';
 import { CanvasScene } from '../components/constellation/CanvasScene';
 import { SelectionPanel } from '../components/constellation/SelectionPanel';
+import { CSS3DPanelAnchor } from '../components/constellation/CSS3DPanelAnchor';
 import { SearchUI, SearchUIHandle } from '../components/constellation/SearchUI';
 import { AskTheGraphPanel } from '../components/constellation/AskTheGraphPanel';
 import { SemanticFilters } from '../components/constellation/SemanticFilters';
@@ -79,6 +80,10 @@ export const ConstellationCanvas: React.FC = () => {
   // Auto-save selected items to recent navigation (Phase 3.4)
   useNavigationMemory({ selectedItem });
 
+  // Phase 3 (Current Session): Side panel state separated from selectedItem
+  // Billboard visibility is controlled by selectedItem presence (canvas click deselect disabled)
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+
   // Phase 8.0: D3 shelved from active demo path (force API/Curated layout only)
   // D3 experimental mode remains dormant; hard-coded to 'api' for deterministic demo framing
   const layoutEngine = 'api' as const;
@@ -134,6 +139,21 @@ export const ConstellationCanvas: React.FC = () => {
     console.log('[ConstellationCanvas] Captured canonical demo framing:', capturedFraming);
   }, [controlsReady, canonicalFraming]); // FIXED: Updated dependency array
 
+  // Phase 3 (Current Session): Explicit billboard close handler
+  // Closes side panel and clears selection (which removes billboard by removing selectedItem)
+  const handleCloseBillboard = React.useCallback(() => {
+    console.log('[INSTRUMENT] Billboard close triggered');
+    setSidePanelOpen(false);
+    clearSelection();
+  }, [clearSelection]);
+
+  // Phase 3 (Current Session): Open side panel from billboard More button
+  // Opens side panel while keeping billboard open and selectedItem unchanged
+  const handleOpenMorePanel = React.useCallback(() => {
+    console.log('[INSTRUMENT] More panel requested from billboard');
+    setSidePanelOpen(true);
+  }, []);
+
   // Phase D: Reset to captured canonical framing
   const handleResetFrame = React.useCallback(() => {
     console.log('[RESET_FRAME] handler called at', new Date().toISOString());
@@ -146,6 +166,10 @@ export const ConstellationCanvas: React.FC = () => {
       console.log('[RESET_FRAME] early return triggered');
       return;
     }
+
+    // Phase 3 (Current Session): Close billboard when resetting frame
+    // This clears selectedItem and sidePanelOpen state, removing all detail UI
+    handleCloseBillboard();
 
     // Cancel any active animation
     if (activeAnimationCleanupRef.current) {
@@ -186,7 +210,7 @@ export const ConstellationCanvas: React.FC = () => {
       }
     };
     console.log('[ConstellationCanvas] Reset to canonical framing');
-  }, [canonicalFraming]);
+  }, [canonicalFraming, handleCloseBillboard]);
 
   // Phase D: Cancel active animation on gesture (user pan/zoom/click)
   const handleCancelAnimation = React.useCallback(() => {
@@ -437,15 +461,67 @@ export const ConstellationCanvas: React.FC = () => {
     previousSelectedItemRef.current = selectedItem;
   }, [selectedItem]);
 
-  // STEP 1 INSTRUMENTATION: handleClearSelection wrapper with trace
-  const handleClearSelection = React.useCallback(() => {
-    console.trace('[STEP_1_INSTRUMENTATION] clearSelection called from:', {
-      url: window.location.search,
-      timestamp: new Date().toISOString(),
-      previousSelection: previousSelectedItemRef.current?.data.id ?? null,
-    });
-    clearSelection();
-  }, [clearSelection]);
+  // Phase 3 (Current Session): Callback wrappers for node/project selection
+  // CRITICAL: These explicitly control side panel state and selection
+  const handleSelectNode = React.useCallback((node: any) => {
+    console.log('[INSTRUMENT] Node selected:', node.id);
+    selectNode(node);
+    setSidePanelOpen(false);
+  }, [selectNode]);
+
+  const handleSelectProject = React.useCallback((project: any) => {
+    console.log('[INSTRUMENT] Project selected:', project.id);
+    selectProject(project);
+    setSidePanelOpen(false);
+  }, [selectProject]);
+
+  // Handle person node selection (render-layer synthetic node at origin)
+  const handlePersonClick = React.useCallback(() => {
+    // Create synthetic person selection
+    // Since person is a render-layer node, not a backend entity, we use a synthetic data object
+    clearSelection(); // Clear existing selection first
+    // Person node selection will be handled separately via dedicated state
+    // For now, we frame the origin and update UI to show person context
+
+    // Trigger camera focus on origin (0, 0, 0)
+    if (!cameraRef.current || !cameraControlsRef.current) {
+      return;
+    }
+
+    // Cancel any active animation
+    if (activeAnimationCleanupRef.current) {
+      activeAnimationCleanupRef.current();
+      activeAnimationCleanupRef.current = null;
+    }
+
+    // Mark animation as active
+    isAnimatingRef.current = true;
+
+    // Compute focus target for origin (frame person node + surrounding context)
+    // Origin position is [0, 0, 0]; we want to see it centered with some context
+    const originPosition = new THREE.Vector3(0, 0, 0);
+    const { targetPosition, targetLookAt } = computeFocusTarget(
+      [originPosition],
+      cameraRef.current.position.z
+    );
+
+    // Animate to origin
+    const cleanup = animateCamera(
+      cameraRef.current,
+      cameraControlsRef.current,
+      targetPosition,
+      targetLookAt,
+      500
+    );
+
+    // Wrap cleanup to clear animation flag
+    activeAnimationCleanupRef.current = () => {
+      isAnimatingRef.current = false;
+      cleanup();
+    };
+
+    console.log('[ConstellationCanvas] Person node selected, framing origin');
+  }, []);
 
   // Phase 3.4: Auto-focus camera on selection with smart framing
   // Watches selectedItem and triggers smooth camera animation to focus on selected entity + connected entities
@@ -826,9 +902,10 @@ export const ConstellationCanvas: React.FC = () => {
       <CanvasScene
         graph={renderableGraph}
         onUnresolvedEdgesChange={setUnresolvedEdgesCount}
-        onNodeClick={selectNode}
-        onProjectClick={selectProject}
-        onCanvasClick={handleClearSelection}
+        onNodeClick={handleSelectNode}
+        onProjectClick={handleSelectProject}
+        onPersonClick={handlePersonClick}
+        onCanvasClick={undefined}
         highlightState={highlightState}
         semanticVisibility={semanticVisibility}
         selectedNodeId={selectedItem?.type === 'node' ? selectedItem.data.id : undefined}
@@ -839,15 +916,31 @@ export const ConstellationCanvas: React.FC = () => {
         onControlsReady={handleControlsReady}
         isAnimatingRef={isAnimatingRef}
         onCancelAnimation={handleCancelAnimation}
+        selectedItem={selectedItem}
+        onClearSelection={handleCloseBillboard}
+        onOpenMorePanel={handleOpenMorePanel}
       />
 
-      <SelectionPanel
-        selectedItem={selectedItem}
-        onClose={handleClearSelection}
-        cameraRef={cameraRef}
-        canvasWidth={canvasWidth}
-        canvasHeight={canvasHeight}
-      />
+      {/* Phase 3 (Current Session): Side panel only renders when explicitly opened via "More" button */}
+      {sidePanelOpen && selectedItem && (
+        <SelectionPanel
+          selectedItem={selectedItem}
+          onClose={() => setSidePanelOpen(false)}
+          cameraRef={cameraRef}
+          canvasWidth={canvasWidth}
+          canvasHeight={canvasHeight}
+        />
+      )}
+
+      {/* Phase 3: Projected DOM Anchored Panels (Experimental, behind feature flag)
+          Note: NOT using Three.js CSS3DRenderer; uses Drei <Html> component for 3D→2D projection.
+          R3F automatically handles continuous position updates as camera moves (rotate, zoom, pan). */}
+      {import.meta.env.VITE_CSS3D_PANELS_ENABLED === 'true' && (
+        <CSS3DPanelAnchor
+          selectedItem={selectedItem}
+          onClose={handleCloseBillboard}
+        />
+      )}
 
       <AskTheGraphPanel
         nodes={data?.nodes ?? []}

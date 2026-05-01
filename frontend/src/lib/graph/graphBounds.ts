@@ -106,11 +106,11 @@ export interface CameraParams {
 export function computeCameraParams(
   bounds: GraphBounds,
   viewportAspect: number,
-  paddingFraction = 0.15
+  paddingFraction = 0.35
 ): CameraParams {
   const { center, size } = bounds;
 
-  // Add generous padding to bounds (increased from 5% to 15%)
+  // Phase 10.1: Increased padding from 0.25 to 0.35 to account for render-layer spatial expansion (1.2x global, 1.6x Z)
   const paddedSize = [
     size[0] * (1 + paddingFraction * 2),
     size[1] * (1 + paddingFraction * 2),
@@ -137,9 +137,9 @@ export function computeCameraParams(
   const top = center[1] + frustumHeight / 2;
   const bottom = center[1] - frustumHeight / 2;
 
-  // Position camera further back to ensure all 4 projects visible (increased from 1.3x to 2.0x)
-  // This accounts for the extreme Z-axis spread in the graph
-  const distance = Math.max(size[0], size[1], size[2]) * 2.0;
+  // Phase 10.1: Increased distance from 2.0x to 2.4x to account for render-layer expansion (1.2x global, 1.6x Z)
+  // Ensures camera captures fully expanded geometry without clipping
+  const distance = Math.max(size[0], size[1], size[2]) * 2.4;
   const position: [number, number, number] = [center[0], center[1], center[2] + distance];
 
   // Near/far planes: must account for actual Z range of geometry

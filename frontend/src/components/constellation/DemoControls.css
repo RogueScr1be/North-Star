@@ -35,7 +35,8 @@
   border-color: rgba(0, 255, 200, 0.7);
   color: #00ffc8;
   background-color: rgba(0, 255, 200, 0.08);
-  box-shadow: 0 0 8px rgba(0, 255, 200, 0.2);
+  box-shadow: 0 0 12px rgba(0, 255, 200, 0.3);
+  /* Phase 10.0b: Strengthened glow for consistent button treatment */
 }
 
 .demo-control-button:active:not(:disabled) {

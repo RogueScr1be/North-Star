@@ -5,7 +5,7 @@
  * Phase 5.6: Follow-ups + recent queries + camera focus
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { GraphNode, GraphProject } from '../../lib/graph/graphTypes';
 import { useAskTheGraph } from '../../hooks/useAskTheGraph';
 import { generateFollowUps, FollowUpSuggestion }from '../../lib/graph/followUpQuestions';
@@ -16,6 +16,9 @@ import {
   logAskGraphPanelClosed,
   logAskGraphFrontendError,
 } from '../../lib/frontend-telemetry';
+import { saveAnswer, isSaved as checkIsSaved, getSavedAnswers, deleteAnswer } from '../../lib/storage/savedAnswers';
+import type { SavedAnswer } from '../../lib/storage/savedAnswers';
+import { sanitizeSearchQuery } from '../../lib/analytics/queryRedaction';
 import './AskTheGraphPanel.css';
 
 // ============================================================================
@@ -58,6 +61,44 @@ function saveRecentQuery(query: string) {
   } catch {
     // Silently fail
   }
+}
+
+// ============================================================================
+// ANSWER CHUNKING (Phase 13)
+// ============================================================================
+
+/**
+ * Split answer text into readable blocks by paragraph breaks
+ * Preserves single-paragraph answers as-is
+ * Enables future heading detection (## prefix)
+ */
+function chunkAnswerText(text: string): { type: 'text' | 'heading'; content: string }[] {
+  const blocks: { type: 'text' | 'heading'; content: string }[] = [];
+
+  // Split on double newlines (paragraph breaks)
+  const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+
+  if (paragraphs.length === 0) {
+    return [{ type: 'text', content: text }];
+  }
+
+  // Process each paragraph
+  for (const para of paragraphs) {
+    // Optional: detect heading markers (## prefix for future use)
+    if (para.trim().startsWith('##')) {
+      blocks.push({
+        type: 'heading',
+        content: para.trim().substring(2).trim(),
+      });
+    } else {
+      blocks.push({
+        type: 'text',
+        content: para.trim(),
+      });
+    }
+  }
+
+  return blocks.length > 0 ? blocks : [{ type: 'text', content: text }];
 }
 
 // ============================================================================
@@ -146,6 +187,80 @@ function RecentQueryButton({
 }
 
 /**
+ * Preset question button (Phase 12A)
+ */
+function PresetQuestionButton({
+  query,
+  onSelect,
+}: {
+  query: string;
+  onSelect: (text: string) => void;
+}) {
+  return (
+    <button
+      className="ask-preset-button"
+      onClick={() => onSelect(query)}
+      title={`Ask: ${query}`}
+    >
+      {query}
+    </button>
+  );
+}
+
+/**
+ * Saved answer item (Phase 15)
+ */
+function SavedAnswerItem({
+  savedAnswer,
+  onSelect,
+  onDelete,
+}: {
+  savedAnswer: SavedAnswer;
+  onSelect: (query: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const timestamp = new Date(savedAnswer.timestamp);
+  const formattedTime = timestamp.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  // Preview: first 1-2 lines of answer
+  const previewText = savedAnswer.answer
+    .split('\n')
+    .slice(0, 2)
+    .join(' ')
+    .substring(0, 120);
+
+  return (
+    <div className="ask-saved-item">
+      <button
+        className="ask-saved-item-content"
+        onClick={() => onSelect(savedAnswer.query)}
+        title={`Re-open: ${savedAnswer.query}`}
+      >
+        <div className="ask-saved-query">{savedAnswer.query}</div>
+        <div className="ask-saved-preview">{previewText}…</div>
+        <div className="ask-saved-timestamp">{formattedTime}</div>
+      </button>
+      <button
+        className="ask-saved-delete"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(savedAnswer.id);
+        }}
+        title="Delete saved answer"
+        aria-label="Delete"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+/**
  * Main panel component
  */
 export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
@@ -158,6 +273,8 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [recentQueries, setRecentQueries] = useState<string[]>([]);
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedAnswers, setSavedAnswers] = useState<SavedAnswer[]>([]);
   const { loading, answer, error, askGraph, clear, logEvidenceClick } = useAskTheGraph(nodes, projects);
 
   // Phase 5.9: Answer context lifecycle tracking
@@ -169,9 +286,10 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
   const panelOpenTimeRef = useRef<number | null>(null);
   const currentRequestIdRef = useRef<string>('');
 
-  // Load recent queries on mount
+  // Load recent queries and saved answers on mount (Phase 15)
   useEffect(() => {
     setRecentQueries(getRecentQueries());
+    setSavedAnswers(getSavedAnswers());
   }, []);
 
   // Compute follow-ups from answer (Phase 5.6)
@@ -180,11 +298,22 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
     return generateFollowUps(answer, answer.citedNodes[0]?.title, answer.citedNodes[1]?.title);
   }, [answer]);
 
+  // Phase 14: Check if answer is saved when answer changes
+  useEffect(() => {
+    if (answer && inputValue.trim()) {
+      const { queryHash } = sanitizeSearchQuery(inputValue);
+      setIsSaved(checkIsSaved(queryHash));
+    } else {
+      setIsSaved(false);
+    }
+  }, [answer, inputValue]);
+
   /**
    * Handle input change
    */
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.currentTarget.value);
+    const newValue = e.currentTarget.value;
+    setInputValue(newValue);
   };
 
   /**
@@ -303,6 +432,59 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
     askGraph(query);
   };
 
+  /**
+   * Handle preset question click (Phase 12A)
+   */
+  const handlePresetQuestion = (query: string) => {
+    setInputValue(query);
+    setIsOpen(true);
+    saveRecentQuery(query);
+    setRecentQueries(getRecentQueries());
+    askGraph(query);
+  };
+
+  /**
+   * Phase 14: Save answer to memory
+   */
+  const handleSaveAnswer = useCallback(() => {
+    // Guard: require answer text
+    if (!answer?.text) {
+      console.warn('[AskTheGraphPanel] Cannot save: missing answer text');
+      return;
+    }
+
+    // Compute queryHash from input
+    const { queryHash } = sanitizeSearchQuery(inputValue);
+
+    const savedAnswer: SavedAnswer = {
+      id: queryHash,
+      query: inputValue,
+      answer: answer.text,
+      timestamp: Date.now(),
+      queryHash: queryHash,
+    };
+
+    saveAnswer(savedAnswer);
+    setIsSaved(true);
+  }, [answer, inputValue]);
+
+  /**
+   * Phase 15: Load a saved answer into Ask-the-Graph
+   */
+  const handleLoadSavedAnswer = useCallback((query: string) => {
+    setInputValue(query);
+    setIsOpen(true);
+    askGraph(query);
+  }, [askGraph]);
+
+  /**
+   * Phase 15: Delete a saved answer
+   */
+  const handleDeleteSavedAnswer = useCallback((id: string) => {
+    deleteAnswer(id);
+    setSavedAnswers(getSavedAnswers());
+  }, []);
+
   // Step 5: Emit error event on error (conditional, only if error exists)
   useEffect(() => {
     if (error && currentRequestIdRef.current) {
@@ -381,15 +563,17 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
     return (
       <div className="ask-graph-trigger">
         <form onSubmit={handleSubmit} className="ask-graph-input-wrapper">
-          <input
-            type="text"
-            placeholder="Ask a Question"
-            value={inputValue}
-            onChange={handleInputChange}
-            onFocus={handleFocus}
-            className="ask-graph-input-compact"
-            aria-label="Ask a Question"
-          />
+          <div className="ask-input-container">
+            <input
+              type="text"
+              placeholder="Ask a Question"
+              value={inputValue}
+              onChange={handleInputChange}
+              onFocus={handleFocus}
+              className="ask-graph-input-compact"
+              aria-label="Ask a Question"
+            />
+          </div>
           {inputValue.trim() && <button type="submit" className="ask-submit-button">Ask</button>}
         </form>
       </div>
@@ -408,17 +592,36 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
 
       {/* Input */}
       <form onSubmit={handleSubmit} className="ask-graph-input-wrapper-expanded">
-        <input
-          type="text"
-          placeholder="Ask a Question"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={handleFocus}
-          className="ask-graph-input-expanded"
-          aria-label="Ask a Question"
-        />
+        <div className="ask-input-container">
+          <input
+            type="text"
+            placeholder="Ask a Question"
+            value={inputValue}
+            onChange={handleInputChange}
+            onFocus={handleFocus}
+            className="ask-graph-input-expanded"
+            aria-label="Ask a Question"
+          />
+        </div>
         {inputValue.trim() && <button type="submit" className="ask-submit-button">Ask</button>}
       </form>
+
+      {/* Phase 15: Saved answers section (shown when no query, before answer) */}
+      {!inputValue.trim() && !answer && savedAnswers.length > 0 && (
+        <div className="ask-saved-section">
+          <div className="ask-saved-header">Memory</div>
+          <div className="ask-saved-list">
+            {savedAnswers.map((saved) => (
+              <SavedAnswerItem
+                key={saved.id}
+                savedAnswer={saved}
+                onSelect={handleLoadSavedAnswer}
+                onDelete={handleDeleteSavedAnswer}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Loading state */}
       {loading && (
@@ -438,15 +641,33 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
       {/* Answer state */}
       {answer && !loading && (
         <div className="ask-answer-container">
-          {/* Answer text */}
+          {/* Answer text (Phase 13: chunked for readability) */}
           <div className="ask-answer">
             <div className="ask-answer-header">
-              <span className={`ask-confidence ask-confidence-${answer.confidence}`}>
-                {answer.confidence.toUpperCase()}
-              </span>
-              <span className={`ask-type ask-type-${answer.type}`}>{answer.type}</span>
+              <div className="ask-answer-meta">
+                <span className={`ask-confidence ask-confidence-${answer.confidence}`}>
+                  {answer.confidence.toUpperCase()}
+                </span>
+                <span className={`ask-type ask-type-${answer.type}`}>{answer.type}</span>
+              </div>
+              {/* Phase 14: Save button */}
+              <button
+                className={`ask-save-button ${isSaved ? 'saved' : ''}`}
+                onClick={handleSaveAnswer}
+                title={isSaved ? 'Saved to memory' : 'Save to memory'}
+              >
+                {isSaved ? '★' : '☆'}
+              </button>
             </div>
-            <p className="ask-answer-text">{answer.text}</p>
+            <div className="ask-answer-blocks">
+              {chunkAnswerText(answer.text).map((block, idx) =>
+                block.type === 'heading' ? (
+                  <h4 key={idx} className="ask-answer-heading">{block.content}</h4>
+                ) : (
+                  <p key={idx} className="ask-answer-block">{block.content}</p>
+                )
+              )}
+            </div>
             <p className="ask-explanation">{answer.explanation}</p>
           </div>
 
@@ -517,6 +738,25 @@ export const AskTheGraphPanel: React.FC<AskTheGraphPanelProps> = ({
       {/* Empty state when open but no query */}
       {isOpen && !answer && !loading && !error && (
         <div className="ask-state ask-empty">
+          {/* Preset questions (Phase 12A) */}
+          <div className="ask-preset-section">
+            <p className="ask-preset-label">Try</p>
+            <div className="ask-preset-list">
+              <PresetQuestionButton
+                query="What is North Star?"
+                onSelect={handlePresetQuestion}
+              />
+              <PresetQuestionButton
+                query="How are GetIT and Fast Food connected?"
+                onSelect={handlePresetQuestion}
+              />
+              <PresetQuestionButton
+                query="What should I work on next?"
+                onSelect={handlePresetQuestion}
+              />
+            </div>
+          </div>
+
           {/* Recent queries (Phase 5.6) */}
           {recentQueries.length > 0 && (
             <div className="ask-recent-section">
