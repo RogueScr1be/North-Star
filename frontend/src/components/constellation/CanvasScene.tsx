@@ -941,6 +941,34 @@ function SceneContent({
     }
   }, [graph, onUnresolvedEdgesChange]);
 
+  // Phase 5.1: Derive projectTitle and connectedCount for billboarded panel
+  // Compute these values once per selection change; pass as simple props to BillboardedPanel
+  const { projectTitle, connectedCount } = useMemo(() => {
+    if (!selectedItem) return { projectTitle: undefined, connectedCount: undefined };
+
+    const item = selectedItem.data as any;
+
+    // Compute projectTitle: find project containing this node (if node)
+    let title: string | undefined;
+    if (selectedItem.type === 'node') {
+      const project = graph.projects.find(p => p.id === item.project_id);
+      title = project?.title;
+    }
+
+    // Compute connectedCount: count edges connected to this item
+    let count = 0;
+    if (selectedItem.type === 'node') {
+      count = (graph.edges ?? []).filter(
+        e => e.source === item.id || e.target === item.id
+      ).length;
+    } else if (selectedItem.type === 'project') {
+      // For projects, count nodes in the project
+      count = (graph.nodes ?? []).filter(n => n.project_id === item.id).length;
+    }
+
+    return { projectTitle: title, connectedCount: count };
+  }, [selectedItem, graph.nodes, graph.projects, graph.edges]);
+
   // FIX (DEMO LOCK BUG #5): Animate camera to frame selected project as hero shot
   useEffect(() => {
     if (!selectedProjectId || !cameraRef?.current) return;
@@ -1031,7 +1059,7 @@ function SceneContent({
       <NodeLabels graph={graph} selectedNodeId={selectedNodeId} />
 
       {/* Phase 3: Billboarded panel (quaternion-synced, always faces camera) */}
-      {selectedItem && <BillboardedPanel selectedItem={selectedItem} onClose={onClearSelection ?? (() => {})} onOpenMorePanel={onOpenMorePanel} />}
+      {selectedItem && <BillboardedPanel selectedItem={selectedItem} onClose={onClearSelection ?? (() => {})} onOpenMorePanel={onOpenMorePanel} projectTitle={projectTitle} connectedCount={connectedCount} />}
 
       {/* Interactive picking layer */}
       <PickablePerson onPersonClick={onPersonClick} />

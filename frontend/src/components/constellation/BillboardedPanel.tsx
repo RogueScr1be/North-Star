@@ -22,6 +22,8 @@ interface BillboardedPanelProps {
   onClose: () => void;
   onOpenMorePanel?: () => void; // Phase 3 (Current Session): Open side panel without closing billboard
   position: [number, number, number];
+  projectTitle?: string; // Phase 5.1: Parent context hint for nodes
+  connectedCount?: number; // Phase 5.1: Relationship count for nodes
 }
 
 /**
@@ -32,7 +34,9 @@ function BillboardPanelContent({
   selectedItem,
   onClose,
   onOpenMorePanel,
-  position: [posX, posY, posZ]
+  position: [posX, posY, posZ],
+  projectTitle,
+  connectedCount,
 }: BillboardedPanelProps) {
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
@@ -64,6 +68,8 @@ function BillboardPanelContent({
   const type = selectedItem.type === 'node' ? item.type : 'project';
   const title = item.title || 'Unknown';
   const gravity = item.gravity_score ?? 0;
+  const description = item.description ? item.description.slice(0, 150) : null;
+  const tags = item.tags && Array.isArray(item.tags) ? item.tags.slice(0, 3) : [];
 
   const handleGroupPointerEvent = (e: any) => {
     e.stopPropagation();
@@ -112,9 +118,47 @@ function BillboardPanelContent({
             <h3 className="billboarded-panel-title">{title}</h3>
           </div>
 
-          {/* Gravity score */}
-          <div className="billboarded-panel-gravity">
-            Gravity: {Math.round((gravity ?? 0) * 100)}%
+          {/* Description (Phase 5.1) — only if present */}
+          {description && (
+            <p className="billboarded-panel-description">{description}</p>
+          )}
+
+          {/* Tags (Phase 5.1) — only if present */}
+          {tags.length > 0 && (
+            <div className="billboarded-panel-tags">
+              {tags.map((tag: string) => (
+                <span key={tag} className="billboarded-panel-tag">
+                  {tag}
+                </span>
+              ))}
+              {item.tags && item.tags.length > 3 && (
+                <span className="billboarded-panel-tag-more">
+                  +{item.tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Metadata row (Phase 5.1) — gravity + context */}
+          <div className="billboarded-panel-metadata">
+            <span className="billboarded-panel-gravity">
+              {Math.round((gravity ?? 0) * 100)}%
+            </span>
+            {selectedItem.type === 'node' && projectTitle && (
+              <span className="billboarded-panel-context">
+                Part of {projectTitle}
+              </span>
+            )}
+            {selectedItem.type === 'node' && typeof connectedCount === 'number' && connectedCount > 0 && (
+              <span className="billboarded-panel-connections">
+                {connectedCount} {connectedCount === 1 ? 'connection' : 'connections'}
+              </span>
+            )}
+            {selectedItem.type === 'project' && typeof connectedCount === 'number' && connectedCount > 0 && (
+              <span className="billboarded-panel-connections">
+                {connectedCount} {connectedCount === 1 ? 'node' : 'nodes'}
+              </span>
+            )}
           </div>
 
           {/* More / Details button (Phase 3 Current Session) */}
@@ -153,7 +197,9 @@ function BillboardPanelContent({
 export function BillboardedPanel({
   selectedItem,
   onClose,
-  onOpenMorePanel
+  onOpenMorePanel,
+  projectTitle,
+  connectedCount,
 }: Omit<BillboardedPanelProps, 'position'>) {
   if (!selectedItem) {
     return null;
@@ -176,6 +222,8 @@ export function BillboardedPanel({
       onClose={onClose}
       onOpenMorePanel={onOpenMorePanel}
       position={renderedPosition}
+      projectTitle={projectTitle}
+      connectedCount={connectedCount}
     />
   );
 }
