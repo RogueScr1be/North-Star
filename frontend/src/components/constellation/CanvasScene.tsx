@@ -4,9 +4,10 @@
  * Phase 2.2: Read-only rendering with Points geometries
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
+import { OverviewScene, ViewModeToggle } from './SemanticOverviewMode';
 import * as THREE from 'three';
 import { RenderableGraph } from '../../lib/graph/graphTransforms';
 import { computeGraphBounds, computeCameraParams, CameraParams } from '../../lib/graph/graphBounds';
@@ -15,6 +16,7 @@ import { PersonNode } from './PersonNode';
 import { NodeGeometry } from './NodeGeometry';
 import { PulsarNodeGeometry } from './PulsarNodeGeometry';
 import { BillboardedPanel } from './BillboardedPanel';
+import { UniverseBackdrop } from './UniverseBackdrop';
 import { EvidenceHoverLine } from './EvidenceHoverLine';
 import {
   HighlightState,
@@ -52,6 +54,9 @@ interface CanvasSceneProps {
   onEvidenceHover?: (nodeId: string) => void; // Phase 5.4: Evidence card hover callback
   onEvidenceLeave?: () => void; // Phase 5.4: Evidence card leave callback
   onEvidenceSelect?: (nodeId: string) => void; // Phase 6.1: Evidence card selection callback
+  setProjectCluster?: (projectId: string) => void; // Phase 6.4: Project cluster filter handler
+  toggleNodeType?: (type: string) => void; // Phase 6.4: Node type toggle handler
+  clearAllFilters?: () => void; // Phase 6.4: Clear all filters handler
 }
 
 /**
@@ -1082,6 +1087,9 @@ function SceneContent({
       {/* <fog attach="fog" args={['#000000', 20, 150]} /> */}
       <StarField />
 
+      {/* Phase 10.0b: Universe Backdrop (demo polish — distant ghost constellations) */}
+      <UniverseBackdrop enabled={import.meta.env.VITE_ENABLE_UNIVERSE_BACKDROP !== 'false'} />
+
       {/* Origin constellation (Phase 10.0b: Central person node) */}
       <PersonNode />
 
@@ -1144,6 +1152,9 @@ export function CanvasScene({
   onEvidenceHover,        // Phase 5.4: Evidence card hover callback
   onEvidenceLeave,        // Phase 5.4: Evidence card leave callback
   onEvidenceSelect,       // Phase 5.4: Evidence card selection callback
+  setProjectCluster,      // Phase 6.4: Project cluster filter handler
+  toggleNodeType,         // Phase 6.4: Node type toggle handler
+  // Phase 6.4: clearAllFilters reserved for future use, intentionally unused
 }: CanvasSceneProps) {
   // Disable raycasting on background plane to allow clicks to pass through to nodes/projects
   const bgPlane2Ref = useRef<THREE.Mesh>(null);
@@ -1153,6 +1164,10 @@ export function CanvasScene({
       bgPlane2Ref.current.raycast = () => {};
     }
   }, []);
+
+  // Phase 6.4: Semantic Overview Mode feature flag and view state
+  const SEMANTIC_OVERVIEW_ENABLED = import.meta.env.VITE_ENABLE_SEMANTIC_OVERVIEW === 'true';
+  const [viewMode, setViewMode] = useState<'detailed' | 'overview'>('detailed');
 
   // Compute bounds and camera parameters once from graph
   const { cameraParams } = useMemo(() => {
@@ -1197,62 +1212,93 @@ export function CanvasScene({
   }, [onCancelAnimation, isAnimatingRef]);
 
   return (
-    <Canvas
-      orthographic
-      frameloop="always"
-      gl={{
-        antialias: true,
-        stencil: false,
-        depth: true,
-      }}
-      style={{ width: '100%', height: '100%', background: '#000000' }}
-    >
-      <SceneContent
-        graph={graph}
-        cameraParams={cameraParams}
-        onUnresolvedEdgesChange={onUnresolvedEdgesChange}
-        onNodeClick={onNodeClick}
-        onProjectClick={onProjectClick}
-        onPersonClick={onPersonClick}
-        highlightState={highlightState}
-        semanticVisibility={semanticVisibility}
-        selectedNodeId={selectedNodeId}
-        selectedProjectId={selectedProjectId}
-        citedState={citedState}
-        cameraRef={cameraRef}
-        controlsRef={controlsRef}
-        onCameraReady={onCameraReady}
-        onControlsReady={onControlsReady}
-        selectedItem={selectedItem}
-        onClearSelection={onClearSelection}
-        hoveredEvidenceNodeId={hoveredEvidenceNodeId}
-        onEvidenceHover={onEvidenceHover}
-        onEvidenceLeave={onEvidenceLeave}
-        onEvidenceSelect={onEvidenceSelect}
-      />
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <Canvas
+        orthographic
+        frameloop="always"
+        gl={{
+          antialias: true,
+          stencil: false,
+          depth: true,
+        }}
+        style={{ width: '100%', height: '100%', background: '#000000' }}
+      >
+        {viewMode === 'detailed' ? (
+          <SceneContent
+            graph={graph}
+            cameraParams={cameraParams}
+            onUnresolvedEdgesChange={onUnresolvedEdgesChange}
+            onNodeClick={onNodeClick}
+            onProjectClick={onProjectClick}
+            onPersonClick={onPersonClick}
+            highlightState={highlightState}
+            semanticVisibility={semanticVisibility}
+            selectedNodeId={selectedNodeId}
+            selectedProjectId={selectedProjectId}
+            citedState={citedState}
+            cameraRef={cameraRef}
+            controlsRef={controlsRef}
+            onCameraReady={onCameraReady}
+            onControlsReady={onControlsReady}
+            selectedItem={selectedItem}
+            onClearSelection={onClearSelection}
+            hoveredEvidenceNodeId={hoveredEvidenceNodeId}
+            onEvidenceHover={onEvidenceHover}
+            onEvidenceLeave={onEvidenceLeave}
+            onEvidenceSelect={onEvidenceSelect}
+          />
+        ) : (
+          <OverviewScene
+            graph={graph}
+            visibleNodeIds={semanticVisibility?.visibleNodeIds}
+            semanticVisibility={semanticVisibility}
+            onProjectClick={(projectId) => {
+              const project = graph.projects.find((p) => p.id === projectId);
+              if (project && onProjectClick) {
+                onProjectClick(project);
+              }
+              if (setProjectCluster) {
+                setProjectCluster(projectId);
+              }
+              setViewMode('detailed');
+            }}
+            onTypeClick={(type) => {
+              if (toggleNodeType) {
+                toggleNodeType(type);
+              }
+              setViewMode('detailed');
+            }}
+          />
+        )}
 
-      {/* Background mesh for canvas deselect clicks */}
-      {onCanvasClick && (
-        <mesh
-          ref={bgPlane2Ref}
-          position={[0, 0, -100]}
-          scale={[10000, 10000, 1]}
-          onPointerUp={(e) => {
-            // Only deselect if click is directly on the background plane
-            // Clicks on other objects (nodes, billboards) are stopped via stopPropagation()
-            if (e.object === bgPlane2Ref.current) {
-              e.stopPropagation();
-              onCanvasClick();
-            }
-          }}
-        >
-          <planeGeometry />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
+        {/* Background mesh for canvas deselect clicks */}
+        {onCanvasClick && (
+          <mesh
+            ref={bgPlane2Ref}
+            position={[0, 0, -100]}
+            scale={[10000, 10000, 1]}
+            onPointerUp={(e) => {
+              // Only deselect if click is directly on the background plane
+              // Clicks on other objects (nodes, billboards) are stopped via stopPropagation()
+              if (e.object === bgPlane2Ref.current) {
+                e.stopPropagation();
+                onCanvasClick();
+              }
+            }}
+          >
+            <planeGeometry />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        )}
+
+        {/* Phase 6.0: Post-processing effects (Bloom + SMAA) */}
+        <PostProcessingEffects />
+      </Canvas>
+
+      {/* Phase 6.4: View mode toggle button (gated by feature flag) */}
+      {SEMANTIC_OVERVIEW_ENABLED && (
+        <ViewModeToggle currentMode={viewMode} onToggle={setViewMode} />
       )}
-
-      {/* Phase 6.0: Post-processing effects (Bloom + SMAA) */}
-      <PostProcessingEffects />
-    </Canvas>
+    </div>
   );
 }
