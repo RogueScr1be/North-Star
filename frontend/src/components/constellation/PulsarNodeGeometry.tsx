@@ -26,6 +26,7 @@ import {
   getNodeTypeColor,
   blendNodeColor,
 } from '../../lib/graph/highlighting';
+import { getNodeVisualSize } from '../../lib/rendering/nodeSizingConstants';
 
 /**
  * Phase 10.1: Render-Layer Spatial Expansion (identical to NodeGeometry)
@@ -80,20 +81,11 @@ function getNodeColor(
 }
 
 /**
- * Compute node scale (Mirrors NodeGeometry.getNodeScale)
+ * Compute node scale (Phase 5.3: Centralized sizing via getNodeVisualSize)
  */
 function getNodeScale(node: GraphNode): number {
-  const baseSize = 1.5 + node.gravity_score * 2.0;
-  const typeScales: Record<string, number> = {
-    decision: 1.2,
-    constraint: 0.9,
-    metric: 1.1,
-    skill: 1.1,
-    outcome: 1.0,
-    failure: 1.1,
-    experiment: 1.0,
-  };
-  return baseSize * (typeScales[node.type] || 1.0);
+  // Phase 5.3: Use centralized sizing to enforce hierarchy (person > project > all others)
+  return getNodeVisualSize(node.type, node.gravity_score);
 }
 
 /**

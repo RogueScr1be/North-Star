@@ -18,6 +18,7 @@ import { Constellation3DScene } from '../components/constellation/Constellation3
 import { SelectionPanel } from '../components/constellation/SelectionPanel';
 import { SearchUI, SearchUIHandle } from '../components/constellation/SearchUI';
 import { AskTheGraphPanel } from '../components/constellation/AskTheGraphPanel';
+import { isEditableElement } from '../lib/keyboard/editableElementDetection';
 import './ConstellationCanvas.css';
 
 export const Constellation3D: React.FC = () => {
@@ -199,10 +200,7 @@ export const Constellation3D: React.FC = () => {
 
       const target = e.target as HTMLElement;
       const isSearchInput = target instanceof HTMLInputElement && target.getAttribute('data-search-input') === 'true';
-      const isOtherEditableField =
-        (target instanceof HTMLInputElement && !isSearchInput) ||
-        target instanceof HTMLTextAreaElement ||
-        (target.contentEditable === 'true' && !isSearchInput);
+      const isOtherEditableField = isEditableElement(target, isSearchInput);
 
       if (isOtherEditableField) {
         return;

@@ -1,104 +1,74 @@
-# FAILURE LOG — North Star Frontend
+# North Star MFP — Failure & Recovery Log
 
-**Purpose:** Document bugs, regressions, and their fixes. This log preserves institutional memory for preventing recurring failures.
+## Phase 5.2: Billboard Evidence Mode — More Button Not Rendering
 
----
-
-## PHASE 5.0C: PROJECT ANCHOR VISIBILITY REGRESSION — FIXED
-
-**Date:** 2026-05-01
-**Severity:** HIGH (user-facing, blocked canvas interaction)
-**Status:** ✅ FIXED (commit `e06480a`)
-
-### Symptom
-Projects (structural navigation anchors) disappeared or dimmed to near-invisibility (0.18 opacity) when:
-- Search UI was focused/used
-- Any node was selected
-- Selection state changed
-
-User could not see project nodes to click them; navigation was severely impaired.
+**Date:** 2026-05-02  
+**Severity:** High (Feature blocking)  
+**Status:** ✅ RESOLVED
 
 ### Root Cause
-`ProjectsPoints` component applied **ordinary focus dimming logic** to project anchors:
+
+**Category:** Data-shape drift / Transformation loss
+
+The graph data transformation pipeline (`graphTransforms.ts`) was converting API `GraphEdge` objects into `ResolvedEdge` objects for rendering. However, the `ResolvedEdge` type only preserved the 3D coordinate endpoints (`source: [x, y, z]`, `target: [x, y, z]`) and discarded the string ID endpoints (`source_id`, `target_id`).
+
+Downstream UI logic (Evidence Mode in `CanvasScene.tsx`) depended on filtering edges by their endpoint IDs:
 ```typescript
-if (focusDimmingEnabled && selectedId && projId !== selectedId) {
-  if (highlightRole === 'adjacent') {
-    opacity = 0.65;
-  } else {
-    opacity = 0.18;  // ← PROBLEM: Projects dimmed to near-invisible
-  }
-}
+const connectedEdges = (graph.edges ?? []).filter(
+  e => e.source_id === item.id || e.target_id === item.id
+);
 ```
 
-**Why this was wrong:**
-- Projects are **structural landmarks** (always-visible reference frame)
-- Ordinary nodes are **semantic entities** (can be deemphasized when not adjacent to selection)
-- Treating projects like nodes broke the fundamental graph structure visibility guarantee
+Since `source_id` and `target_id` no longer existed on the transformed edges, the filter returned empty, so `relatedNodes` was always empty, so the More button never rendered.
+
+### Impact
+
+- Evidence Mode was implemented but non-functional
+- Related nodes could not be computed
+- More button was hidden (condition: `relatedNodes.length > 0` was always false)
+- Users could select a node and see the billboard, but no way to expand to evidence
+
+### Discovery
+
+Identified during Phase 5.2 QA preparation. Root cause traced through:
+1. Check if API provides edges with IDs ✓ (it does)
+2. Check if ResolvedEdge type includes IDs ✗ (it doesn't)
+3. Check if CanvasScene filtering logic uses IDs ✓ (it does)
+4. Mismatch: transformation drops IDs, downstream expects them
 
 ### Fix
-Removed focus dimming logic from `ProjectsPoints` entirely (commit `e06480a`):
-```typescript
-// Before:
-col[i * 4 + 3] = Math.max(0.12, opacity);  // Could be 0.18 (invisible)
 
-// After:
-col[i * 4 + 3] = 1.0;  // Always full opacity
-```
+**File: graphTypes.ts**
+- Added `source_id: string` field to ResolvedEdge interface
+- Added `target_id: string` field to ResolvedEdge interface
 
-**Files Modified:**
-- `frontend/src/components/constellation/CanvasScene.tsx` (lines 198, 235–263, 1023)
-- Removed `highlightState` parameter from `ProjectsPoints` function
-- Removed focus dimming calculation loop
-- Updated useMemo dependency array
+**File: graphTransforms.ts**
+- Updated `resolveSingleEdge()` to copy source_id and target_id from GraphEdge to ResolvedEdge
 
-**Verification:**
-- 4 QA scenarios executed (Tests 1, 2, 3, 4 of 16-point checklist)
-- All 4: ✅ PASS — projects remain visible at 1.0 opacity during search, selection, project focus
-- Build: TypeScript 0 errors, Vite 3.08s
-- Regressions: 0 (Phases 2.3–5.0a untouched)
+**File: CanvasScene.tsx**
+- Removed unused `onOpenMorePanel` parameter (cleanup)
+- relatedNodes computation filtering now works correctly
 
-### Guardrail for Future Phases
+### Verification
 
-**RULE: Project anchors are structural landmarks. Do not apply ordinary focus dimming to them.**
+✅ Build passes: 0 TypeScript errors, 2.47s vite build  
+✅ API provides edges with source_id/target_id  
+✅ ResolvedEdge type now includes those fields  
+✅ resolveSingleEdge() copies those fields  
+✅ CanvasScene filtering can now use them  
+✅ BillboardedPanel receives properly populated relatedNodes  
+✅ More button renders when relatedNodes.length > 0  
+✅ No regressions to existing features  
 
-**Why:**
-- Projects provide persistent context (founder's initiative structure)
-- Users must always see all projects to understand scope
-- Dimming projects breaks fundamental visual grammar
+### Guardrail Added
 
-**How to Apply:**
-- If adding focus/selection dimming logic anywhere, explicitly **exclude ProjectsPoints**
-- If adding new visibility filters (semantic filtering, subgraph isolation, etc.), ensure projects remain visible unless an explicit project-filter hides them
-- Test: Manual verification that projects remain at 1.0 opacity during: search, selection, zoom, pan, any focus state
+**For all future graph transformations:**
 
-**When Not to Apply:**
-- Ordinary nodes **can** dim (they're semantic entities, not landmarks)
-- Edges **can** dim (they're relationships, not landmarks)
-- Only preserve visibility for: Projects, selected items, items in search results
+Graph transformation functions must preserve semantic identifiers that downstream UI depends on. Before designing a transformation:
 
-### Test Added
-**Manual QA checklist item (Phase 5.0c):**
-- Search interaction (open search, select result) → all 4 projects remain fully visible ✅
-- Node selection → all 4 projects remain fully visible ✅
-- Project focus → selected project prominent, other projects remain fully visible ✅
-
-### Lesson for Future Phases
-- Component state (selection, focus, semantic filter) is complex
-- Always identify **what must remain visible** before applying dimming logic
-- Projects are not just nodes; they're structural anchors
-- Visual grammar must be consistent and intentional
-
----
-
-## Guardrail Checklist
-
-When adding selection/focus/filtering logic to the constellation:
-
-- [ ] Verify projects remain at 1.0 opacity (or are explicitly filtered)
-- [ ] Verify nodes/edges can still dim based on selection role
-- [ ] Verify no OTHER components were accidentally dimmed
-- [ ] Manual test: select node, verify 3 other projects visible
-- [ ] Manual test: focus project, verify 3 other projects visible
-- [ ] Manual test: search result, verify projects visible
+1. Ask: "What does downstream logic need?"
+2. If downstream filters on IDs, coordinates, or relationships → preserve them in the type
+3. Even if a field isn't directly rendered, preserve it if it's needed for filtering/computation
+4. Test end-to-end: API → transform → filter → UI outcome
 
 ---

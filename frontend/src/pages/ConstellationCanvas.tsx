@@ -23,7 +23,9 @@ import { AskTheGraphPanel } from '../components/constellation/AskTheGraphPanel';
 import { SemanticFilters } from '../components/constellation/SemanticFilters';
 import { LayoutModeSelector } from '../components/constellation/LayoutModeSelector';
 import { DemoControls } from '../components/constellation/DemoControls';
+import { ResetFrameButton } from '../components/constellation/ResetFrameButton';
 import { HeroItem, findProjectItems, findNearestProject } from '../lib/graph/heroItems';
+import { isEditableElement } from '../lib/keyboard/editableElementDetection';
 import {
   logSemanticFilterToggled,
   logSemanticFiltersCleared,
@@ -38,6 +40,7 @@ export const ConstellationCanvas: React.FC = () => {
   const cameraControlsRef = useRef<any>(null); // Reference to OrbitControls for camera animation
   const cameraRef = useRef<THREE.OrthographicCamera>(null);
   const [citedState, setCitedState] = useState<CitedState>({ citedNodeIds: new Set(), citedProjectIds: new Set(), citedEdgeIds: new Set() });
+  const [hoveredEvidenceNodeId, setHoveredEvidenceNodeId] = useState<string | null>(null);
 
   // Phase B: Demo mode environment flag for constellation-first UI
   const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
@@ -92,7 +95,9 @@ export const ConstellationCanvas: React.FC = () => {
   const [showSemanticFilters] = useState(false);
 
   // Phase D: Demo narrative control
-  const [canonicalFraming, setCanonicalFraming] = useState<{
+  // FIXED: canonicalFraming is now a ref to avoid callback dependency changes
+  // This prevents early returns from stale closures and race conditions
+  const canonicalFramingRef = useRef<{
     position: THREE.Vector3;
     target: THREE.Vector3;
     zoom: number;
@@ -142,16 +147,15 @@ export const ConstellationCanvas: React.FC = () => {
   }, []);
 
   // Phase D: Capture canonical framing once both camera and controls are ready
+  // FIXED: Uses ref to avoid callback dependency changes
   useEffect(() => {
-    // Readiness gate: only attempt capture if both systems are ready
-    if (!controlsReady || canonicalFraming) {
-      console.log('[CAPTURE_EFFECT] early return: controlsReady=', controlsReady, 'already captured=', !!canonicalFraming);
+    // Readiness gate: only attempt capture if controls ready and not already captured
+    if (!controlsReady || canonicalFramingRef.current) {
       return; // Skip if not ready or already captured
     }
 
     // Runtime null checks: ensure refs are populated before accessing properties
     if (!cameraRef.current?.position || !cameraControlsRef.current?.target) {
-      console.log('[CAPTURE_EFFECT] refs not fully initialized: camera.position=', !!cameraRef.current?.position, 'controls.target=', !!cameraControlsRef.current?.target);
       return;
     }
 
@@ -162,10 +166,8 @@ export const ConstellationCanvas: React.FC = () => {
       zoom: (cameraRef.current as any).zoom,
     };
 
-    console.log('[CAPTURE_EFFECT] capturing canonical framing:', capturedFraming);
-    setCanonicalFraming(capturedFraming);
-    console.log('[ConstellationCanvas] Captured canonical demo framing:', capturedFraming);
-  }, [controlsReady, canonicalFraming]); // FIXED: Updated dependency array
+    canonicalFramingRef.current = capturedFraming;
+  }, [controlsReady]); // FIXED: Only depends on controlsReady, not canonicalFraming
 
   // Phase 3 (Current Session): Explicit billboard close handler
   // Closes side panel and clears selection (which removes billboard by removing selectedItem)
@@ -175,77 +177,21 @@ export const ConstellationCanvas: React.FC = () => {
     clearSelection();
   }, [clearSelection]);
 
-  // Phase 3 (Current Session): Open side panel from billboard More button
-  // Opens side panel while keeping billboard open and selectedItem unchanged
-  const handleOpenMorePanel = React.useCallback(() => {
-    console.log('[INSTRUMENT] More panel requested from billboard');
-    setSidePanelOpen(true);
-  }, []);
-
-  // Phase D: Reset to captured canonical framing
-  const handleResetFrame = React.useCallback(() => {
-    console.log('[RESET_FRAME] handler called at', new Date().toISOString());
-    console.log('[RESET_FRAME] canonicalFraming:', canonicalFraming);
-    console.log('[RESET_FRAME] cameraRef.current:', cameraRef.current);
-    console.log('[RESET_FRAME] cameraControlsRef.current:', cameraControlsRef.current);
-    console.log('[RESET_FRAME] isAnimatingRef.current (before):', isAnimatingRef.current);
-
-    if (!canonicalFraming || !cameraRef.current || !cameraControlsRef.current) {
-      console.log('[RESET_FRAME] early return triggered');
-      return;
-    }
-
-    // Phase 3 (Current Session): Close billboard when resetting frame
-    // This clears selectedItem and sidePanelOpen state, removing all detail UI
-    handleCloseBillboard();
-
-    // Cancel any active animation
-    if (activeAnimationCleanupRef.current) {
-      activeAnimationCleanupRef.current();
-      activeAnimationCleanupRef.current = null;
-    }
-
-    // Mark animation as active
-    isAnimatingRef.current = true;
-
-    // Animate back to canonical framing
-    console.log('[RESET_FRAME] target position:', canonicalFraming.position);
-    console.log('[RESET_FRAME] target target:', canonicalFraming.target);
-    console.log('[RESET_FRAME] target zoom:', canonicalFraming.zoom);
-    console.log('[RESET_FRAME] animateCamera about to run');
-    const cleanup = animateCamera(
-      cameraRef.current,
-      cameraControlsRef.current,
-      canonicalFraming.position.toArray() as [number, number, number],
-      canonicalFraming.target.toArray() as [number, number, number],
-      500
-    );
-
-    // Wrap cleanup to clear animation flag and recapture canonical framing
-    activeAnimationCleanupRef.current = () => {
-      isAnimatingRef.current = false;
-      cleanup();
-
-      // Recapture canonical framing after reset animation completes
-      if (cameraRef.current?.position && cameraControlsRef.current?.target) {
-        const newCanonical = {
-          position: cameraRef.current.position.clone(),
-          target: cameraControlsRef.current.target.clone(),
-          zoom: (cameraRef.current as any).zoom,
-        };
-        setCanonicalFraming(newCanonical);
-        console.log('[RESET_FRAME] Recaptured canonical framing after animation:', newCanonical);
-      }
-    };
-    console.log('[ConstellationCanvas] Reset to canonical framing');
-  }, [canonicalFraming, handleCloseBillboard]);
-
   // Phase D: Cancel active animation on gesture (user pan/zoom/click)
   const handleCancelAnimation = React.useCallback(() => {
     if (activeAnimationCleanupRef.current) {
       activeAnimationCleanupRef.current();
       activeAnimationCleanupRef.current = null;
     }
+  }, []);
+
+  // Phase 5.4: Evidence card hover state handlers
+  const handleEvidenceHover = React.useCallback((nodeId: string) => {
+    setHoveredEvidenceNodeId(nodeId);
+  }, []);
+
+  const handleEvidenceLeave = React.useCallback(() => {
+    setHoveredEvidenceNodeId(null);
   }, []);
 
   // Transform data to renderable format
@@ -266,6 +212,95 @@ export const ConstellationCanvas: React.FC = () => {
 
     return graph;
   }, [data]);
+
+  // ROBUST RESET: Compute fallback frame from graph bounds if canonical is missing
+  // Used when canonical capture was delayed/skipped but reset is needed
+  const computeGraphBoundsFrame = React.useCallback((): {
+    position: THREE.Vector3;
+    target: THREE.Vector3;
+    zoom: number;
+  } | null => {
+    if (!renderableGraph || !cameraRef.current) return null;
+
+    const allPositions = [
+      ...renderableGraph.nodes.map(n => new THREE.Vector3(n.position[0], n.position[1], 0)),
+      ...renderableGraph.projects.map(p => new THREE.Vector3(p.position[0], p.position[1], 0)),
+    ];
+
+    if (allPositions.length === 0) return null;
+
+    // Compute centroid and bounds
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    for (const pos of allPositions) {
+      minX = Math.min(minX, pos.x);
+      maxX = Math.max(maxX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxY = Math.max(maxY, pos.y);
+    }
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const maxDim = Math.max(width, height, 1);
+    const padding = maxDim * 0.2;
+    const requiredDim = maxDim + padding * 2;
+    const zoom = Math.max(1.0, requiredDim / 100);
+    const z = 50 * zoom;
+
+    return {
+      position: new THREE.Vector3(centerX, centerY, z),
+      target: new THREE.Vector3(centerX, centerY, 0),
+      zoom: zoom,
+    };
+  }, [renderableGraph]);
+
+  // Phase D: Reset to captured canonical framing (or fallback to graph bounds)
+  // ROBUST: Uses canonical if available, otherwise computes from graph bounds
+  const handleResetFrame = React.useCallback(() => {
+    // Require camera and controls to be ready
+    if (!cameraRef.current || !cameraControlsRef.current) {
+      return;
+    }
+
+    // Use canonical if available, otherwise compute from graph bounds
+    let targetFrame = canonicalFramingRef.current;
+    if (!targetFrame) {
+      targetFrame = computeGraphBoundsFrame();
+      if (!targetFrame) {
+        return; // Can't compute frame
+      }
+    }
+
+    // Close billboard when resetting frame
+    handleCloseBillboard();
+
+    // Cancel any active animation
+    if (activeAnimationCleanupRef.current) {
+      activeAnimationCleanupRef.current();
+      activeAnimationCleanupRef.current = null;
+    }
+
+    // Mark animation as active
+    isAnimatingRef.current = true;
+
+    // Animate back to target framing (canonical or fallback)
+    const cleanup = animateCamera(
+      cameraRef.current,
+      cameraControlsRef.current,
+      targetFrame.position.toArray() as [number, number, number],
+      targetFrame.target.toArray() as [number, number, number],
+      500
+    );
+
+    // Wrap cleanup to clear animation flag
+    activeAnimationCleanupRef.current = () => {
+      isAnimatingRef.current = false;
+      cleanup();
+    };
+  }, [handleCloseBillboard, computeGraphBoundsFrame]); // Depends on both handlers
 
   // Phase 3.3: Focus on nearest project with adaptive zoom
   // MUST be defined AFTER renderableGraph (used in dependency array)
@@ -497,6 +532,14 @@ export const ConstellationCanvas: React.FC = () => {
     setSidePanelOpen(false);
   }, [selectNode]);
 
+  const handleEvidenceSelect = React.useCallback((nodeId: string) => {
+    // Find the node from the node ID
+    const node = data?.nodes?.find(n => n.id === nodeId);
+    if (node) {
+      handleSelectNode(node);
+    }
+  }, [data?.nodes, handleSelectNode]);
+
   const handleSelectProject = React.useCallback((project: any) => {
     console.log('[INSTRUMENT] Project selected:', project.id);
     selectProject(project);
@@ -622,19 +665,21 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Phase 2: Reset camera on deselection (transition from selected → null)
   // Guard: Only fire on actual deselection, not on initial mount or URL hydration
+  // FIXED: Uses canonicalFramingRef instead of state
   useEffect(() => {
     const prev = previousSelectedItemRef.current;
     const justDeselected = prev && !selectedItem;
+    const canonical = canonicalFramingRef.current;
 
     console.log('[ConstellationCanvas] DESELECTION_EFFECT_RUN', {
       prev: prev?.data.id,
       now: selectedItem?.data.id,
       justDeselected,
-      hasCanonicalFraming: !!canonicalFraming,
+      hasCanonicalFraming: !!canonical,
     });
 
     // Guard conditions: transition detected, canonical framing exists, refs ready
-    if (justDeselected && canonicalFraming && cameraRef.current && cameraControlsRef.current) {
+    if (justDeselected && canonical && cameraRef.current && cameraControlsRef.current) {
       console.log('[ConstellationCanvas] Deselection detected, resetting camera to canonical framing');
 
       // Cancel any active animation
@@ -650,8 +695,8 @@ export const ConstellationCanvas: React.FC = () => {
       const cleanup = animateCamera(
         cameraRef.current,
         cameraControlsRef.current,
-        canonicalFraming.position.toArray() as [number, number, number],
-        canonicalFraming.target.toArray() as [number, number, number],
+        canonical.position.toArray() as [number, number, number],
+        canonical.target.toArray() as [number, number, number],
         500
       );
 
@@ -666,7 +711,7 @@ export const ConstellationCanvas: React.FC = () => {
 
     // Update ref for next effect run
     previousSelectedItemRef.current = selectedItem;
-  }, [selectedItem, canonicalFraming]);
+  }, [selectedItem]); // FIXED: Only depends on selectedItem, not canonicalFraming
 
   // When a node is selected on canvas, optionally auto-enable subgraph mode
   // BUT: Only do this for user-driven selections, not URL restoration on mount
@@ -773,13 +818,10 @@ export const ConstellationCanvas: React.FC = () => {
 
       if (!isSearchShortcut) return;
 
-      // Block if typing in non-search input/textarea/contenteditable
+      // Block if typing in non-search input/textarea/select/contenteditable/role=textbox etc
       const target = e.target as HTMLElement;
       const isSearchInput = target instanceof HTMLInputElement && target.getAttribute('data-search-input') === 'true';
-      const isOtherEditableField =
-        (target instanceof HTMLInputElement && !isSearchInput) ||
-        target instanceof HTMLTextAreaElement ||
-        (target.contentEditable === 'true' && !isSearchInput);
+      const isOtherEditableField = isEditableElement(target, isSearchInput);
 
       if (isOtherEditableField) {
         return;
@@ -862,6 +904,14 @@ export const ConstellationCanvas: React.FC = () => {
         />
       )}
 
+      {/* Phase 5.3: Reset frame button enabled once controls are ready */}
+      <ResetFrameButton
+        onClick={() => {
+          handleResetFrame();
+        }}
+        disabled={!controlsReady}
+      />
+
       {/* Phase 3.3: Project focus controls visible only in demo mode */}
       {demoMode && (
         <DemoControls
@@ -911,7 +961,10 @@ export const ConstellationCanvas: React.FC = () => {
         onCancelAnimation={handleCancelAnimation}
         selectedItem={selectedItem}
         onClearSelection={handleCloseBillboard}
-        onOpenMorePanel={handleOpenMorePanel}
+        hoveredEvidenceNodeId={hoveredEvidenceNodeId}
+        onEvidenceHover={handleEvidenceHover}
+        onEvidenceLeave={handleEvidenceLeave}
+        onEvidenceSelect={handleEvidenceSelect}
       />
 
       {/* Phase 3 (Current Session): Side panel only renders when explicitly opened via "More" button */}

@@ -53,6 +53,8 @@ export function resolveSingleEdge(
 
   return {
     id: edge.id,
+    source_id: edge.source_id,
+    target_id: edge.target_id,
     source,
     target,
     relationship_type: edge.relationship_type,

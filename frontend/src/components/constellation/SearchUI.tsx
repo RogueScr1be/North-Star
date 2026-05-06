@@ -432,7 +432,7 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
             autoFocus={isOpen}
             onFocus={() => {
               if (query.trim()) {
-                setIsOpen(results.length > 0);
+                setIsOpen(true);
                 setShowRecents(false);
               } else {
                 // Load navigation items and recent searches from localStorage

@@ -12,8 +12,8 @@
  * - Point-cloud-safe rendering (no emissive/lighting assumptions on PointsMaterial)
  */
 
-import { useEffect, useMemo, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { RenderableGraph } from '../../lib/graph/graphTransforms';
@@ -738,7 +738,171 @@ function ProjectLabels({ graph, selectedProjectId: _selectedProjectId }: { graph
 }
 
 /**
- * NodeLabels: Unchanged from CanvasScene
+ * NodeLabel: Individual label with semantic zoom, scale clamping, and depth-based opacity
+ * Phase 6.0: Progressive disclosure + expensive aesthetic
+ */
+function NodeLabel({
+  node,
+  isSelected,
+  layoutEngine,
+  d3Positions,
+}: {
+  node: GraphNode & { position: [number, number, number] };
+  isSelected: boolean;
+  layoutEngine?: 'api' | 'd3';
+  d3Positions?: D3SettledPositions | null;
+}) {
+  const { camera } = useThree();
+  const [coreOpacity, setCoreOpacity] = useState(isSelected ? 1.0 : 0.0);
+  const [primaryOpacity, setPrimaryOpacity] = useState(0.0);
+  const [subOpacity, setSubOpacity] = useState(0.0);
+  const [scale, setScale] = useState(1.0);
+  const [visible, setVisible] = useState(isSelected);
+
+  // Semantic zoom thresholds (distance units from camera)
+  const ZOOM_THRESHOLD_CLOSE = 30;
+  const ZOOM_THRESHOLD_MEDIUM = 80;
+  const ZOOM_THRESHOLD_FAR = 150;
+
+  // Derive label tiers from node data
+  const coreLabel = node.title;
+  const primaryTypeLabel = node.type ? `(${node.type})` : '';
+  const subLabel = node.description ? node.description.substring(0, 60) : '';
+
+  useFrame(() => {
+    if (!node.position) return;
+
+    const distance = camera.position.distanceTo(
+      new THREE.Vector3(node.position[0], node.position[1], node.position[2])
+    );
+
+    // Calculate target opacities for each tier
+    let targetCoreOpacity = 0;
+    let targetPrimaryOpacity = 0;
+    let targetSubOpacity = 0;
+    let targetScale = 1.0;
+    let shouldShow = false;
+
+    if (isSelected) {
+      // Selected: all tiers visible at full opacity
+      shouldShow = true;
+      targetCoreOpacity = 1.0;
+      targetPrimaryOpacity = 1.0;
+      targetSubOpacity = 0.8;
+      targetScale = Math.max(0.8, Math.min(3.0, distance * 0.015));
+    } else if (distance < ZOOM_THRESHOLD_CLOSE) {
+      // Close zoom: primary + sub labels visible
+      shouldShow = true;
+      targetCoreOpacity = 1.0;
+      targetPrimaryOpacity = 1.0;
+      targetSubOpacity = 0.7;
+      targetScale = Math.max(0.8, Math.min(3.0, distance * 0.015));
+    } else if (distance < ZOOM_THRESHOLD_MEDIUM) {
+      // Medium zoom: primary label fades in
+      shouldShow = true;
+      const fadeIn = (ZOOM_THRESHOLD_MEDIUM - distance) / (ZOOM_THRESHOLD_MEDIUM - ZOOM_THRESHOLD_CLOSE);
+      targetCoreOpacity = 1.0;
+      targetPrimaryOpacity = fadeIn * 0.8;
+      targetSubOpacity = 0;
+      targetScale = Math.max(0.8, Math.min(3.0, distance * 0.015));
+    } else if (distance < ZOOM_THRESHOLD_FAR) {
+      // Far zoom: only core label visible, very faint
+      shouldShow = true;
+      targetCoreOpacity = 0.3;
+      targetPrimaryOpacity = 0;
+      targetSubOpacity = 0;
+      targetScale = Math.max(0.8, Math.min(3.0, distance * 0.015));
+    } else {
+      // Very far: hidden
+      shouldShow = false;
+      targetCoreOpacity = 0;
+      targetPrimaryOpacity = 0;
+      targetSubOpacity = 0;
+      targetScale = Math.max(0.8, Math.min(3.0, distance * 0.015));
+    }
+
+    setVisible(shouldShow);
+    // Smooth lerp for each opacity tier (15% per frame = ~100ms at 60fps)
+    setCoreOpacity((prev) => prev + (targetCoreOpacity - prev) * 0.15);
+    setPrimaryOpacity((prev) => prev + (targetPrimaryOpacity - prev) * 0.15);
+    setSubOpacity((prev) => prev + (targetSubOpacity - prev) * 0.15);
+    setScale(targetScale);
+  });
+
+  if (!visible) {
+    return null;
+  }
+
+  const useD3 = layoutEngine === 'd3' && d3Positions;
+  let labelX = node.position[0];
+  let labelY = node.position[1];
+  let labelZ = node.position[2];
+
+  if (useD3) {
+    const d3Pos = d3Positions?.nodePositions.get(node.id);
+    if (d3Pos) {
+      labelX = d3Pos[0];
+      labelY = d3Pos[1];
+      labelZ = 0;
+    }
+  }
+
+  return (
+    <group key={`label-group-${node.id}`}>
+      {/* Tier 1: Core name (always visible when showing) */}
+      {coreOpacity > 0.01 && (
+        <Text
+          position={[labelX, labelY - 0.8, labelZ]}
+          scale={[scale, scale, scale]}
+          fontSize={0.5}
+          color={0xffffff}
+          maxWidth={2.0}
+          textAlign="center"
+          anchorX="center"
+          anchorY="top"
+        >
+          {coreLabel}
+        </Text>
+      )}
+
+      {/* Tier 2: Primary label + type (fades in at medium zoom) */}
+      {primaryOpacity > 0.01 && (
+        <Text
+          position={[labelX, labelY - 1.2, labelZ]}
+          scale={[scale * 0.8, scale * 0.8, scale]}
+          fontSize={0.4}
+          color={0xaaaaaa}
+          maxWidth={2.5}
+          textAlign="center"
+          anchorX="center"
+          anchorY="top"
+        >
+          {primaryTypeLabel}
+        </Text>
+      )}
+
+      {/* Tier 3: Description (fades in at close zoom) */}
+      {subOpacity > 0.01 && subLabel && (
+        <Text
+          position={[labelX, labelY - 1.5, labelZ]}
+          scale={[scale * 0.6, scale * 0.6, scale]}
+          fontSize={0.3}
+          color={0x888888}
+          maxWidth={3.0}
+          textAlign="center"
+          anchorX="center"
+          anchorY="top"
+        >
+          {subLabel}
+        </Text>
+      )}
+    </group>
+  );
+}
+
+/**
+ * NodeLabels: Orchestrator for semantic zoom progressive disclosure
+ * Phase 6.0: Shows selected + nearby nodes with distance-based fading
  */
 function NodeLabels({
   graph,
@@ -751,39 +915,18 @@ function NodeLabels({
   layoutEngine?: 'api' | 'd3';
   d3Positions?: D3SettledPositions | null;
 }) {
-  const selectedNode = selectedNodeId ? graph.nodes.find((n) => n.id === selectedNodeId) : null;
-
-  if (!selectedNode) {
-    return null;
-  }
-
-  const useD3 = layoutEngine === 'd3' && d3Positions;
-  let labelX = selectedNode.position[0];
-  let labelY = selectedNode.position[1];
-  let labelZ = selectedNode.position[2];
-
-  if (useD3) {
-    const d3Pos = d3Positions.nodePositions.get(selectedNode.id);
-    if (d3Pos) {
-      labelX = d3Pos[0];
-      labelY = d3Pos[1];
-      labelZ = 0;
-    }
-  }
-
   return (
-    <Text
-      key={`label-${selectedNode.id}`}
-      position={[labelX, labelY - 1.0, labelZ]}
-      fontSize={0.5}
-      color={0xcccccc}
-      maxWidth={2.0}
-      textAlign="center"
-      anchorX="center"
-      anchorY="top"
-    >
-      {selectedNode.title}
-    </Text>
+    <>
+      {graph.nodes.map((node) => (
+        <NodeLabel
+          key={`node-label-${node.id}`}
+          node={node}
+          isSelected={node.id === selectedNodeId}
+          layoutEngine={layoutEngine}
+          d3Positions={d3Positions}
+        />
+      ))}
+    </>
   );
 }
 

@@ -1,5 +1,40 @@
 # Decision Log
 
+## Phase 6.1: Post-Processing Effects — Conservative Tuning with Environment Toggles (2026-05-03)
+
+**Decision:** Bloom, SMAA, and DOF effects controlled by environment variables. Bloom parameters tuned conservatively. SMAA used instead of FXAA. DOF disabled by default.
+
+**Bloom Final Parameters:**
+- intensity: 0.35 (restrained glow, no geometry smearing)
+- luminanceThreshold: 0.80 (allows type-colored nodes to bloom; emissive Y~0.8 triggers effect)
+- luminanceSmoothing: 0.18 (soft falloff)
+- mipmapBlur: true (quality)
+- radius: 0.30 (tight halo, preserves shape edges)
+
+**Why:** luminanceThreshold=0.88 (original Phase 6.0) was too high—nodes with emissive ~0.8 barely glowed. Lowering to 0.80 improves shape definition while remaining selective. Radius 0.30 (vs 0.35) keeps glow tight, preserving node silhouettes.
+
+**SMAA vs FXAA:**
+- Chosen: SMAA (Subpixel Morphological Anti-Aliasing)
+- Reason: Superior edge preservation for sharp UI borders; no full-screen blur; proven quality
+- FXAA deferred (would blur text/edges unacceptably)
+
+**Edge Pulse Animation:**
+- Selected/connected edges pulse opacity 0.75–1.0 at frequency ~1.5 cycles/second
+- No selection → all edges invisible (opacity 0.0)
+- Unrelated edges remain invisible (opacity 0.0)
+- Fixed closure bug in requestAnimationFrame loop (Phase 6.1)
+- Subtle, not strobing; adds life without visual noise
+
+**Depth of Field:**
+- DepthOfField component integrated
+- Behind VITE_ENABLE_DOF=true flag (default: false)
+- Deferred activation; disabled by default for Phase 6.1 production
+- Parameters if enabled: focusDistance=0.025, focalLength=0.015, bokehScale=0.6
+
+**Commit:** (current session, Phase 6.1 tuning)
+
+---
+
 ## Phase 4C: Focus Camera Animation — Feature Flag Default (2026-05-01)
 
 **Decision:** Focus camera animation on selection is feature-flagged (`VITE_FOCUS_CAMERA_ON_SELECTION`), default **false**.

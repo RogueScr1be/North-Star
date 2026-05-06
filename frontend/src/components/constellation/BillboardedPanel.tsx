@@ -9,7 +9,7 @@
  * - Follows node position through rotate/orbit/zoom/pan
  */
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { SelectedItem } from '../../hooks/useSelection';
@@ -17,13 +17,24 @@ import { getRenderedPosition } from '../../lib/graph/renderedPositions';
 import * as THREE from 'three';
 import './BillboardedPanel.css';
 
+interface RelatedNode {
+  id: string;
+  title: string;
+  type: string;
+  gravity_score: number;
+  relationshipType?: string;
+}
+
 interface BillboardedPanelProps {
   selectedItem: SelectedItem | null;
   onClose: () => void;
-  onOpenMorePanel?: () => void; // Phase 3 (Current Session): Open side panel without closing billboard
   position: [number, number, number];
   projectTitle?: string; // Phase 5.1: Parent context hint for nodes
   connectedCount?: number; // Phase 5.1: Relationship count for nodes
+  relatedNodes?: RelatedNode[]; // Phase 5.2: Connected nodes for Evidence Mode
+  onEvidenceHover?: (nodeId: string) => void; // Phase 5.4: Evidence card hover callback
+  onEvidenceLeave?: () => void; // Phase 5.4: Evidence card leave callback
+  onEvidenceSelect?: (nodeId: string) => void; // Phase 6.1: Evidence card selection callback
 }
 
 /**
@@ -33,13 +44,21 @@ interface BillboardedPanelProps {
 function BillboardPanelContent({
   selectedItem,
   onClose,
-  onOpenMorePanel,
   position: [posX, posY, posZ],
   projectTitle,
   connectedCount,
+  relatedNodes,
+  onEvidenceHover,
+  onEvidenceLeave,
+  onEvidenceSelect,
 }: BillboardedPanelProps) {
   const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
+
+  // Phase 5.2: Internal billboard mode state ('compact' | 'evidence')
+  const [billboardMode, setBillboardMode] = useState<'compact' | 'evidence'>('compact');
+  // Phase 5.2: Local glow state for path/id trace link
+  const [pathIdGlowing, setPathIdGlowing] = useState(false);
 
   // Sync quaternion with camera on every frame
   useFrame(() => {
@@ -48,7 +67,7 @@ function BillboardPanelContent({
     }
   });
 
-  // Handle Escape key
+  // Handle Escape key or selection change → reset mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -59,6 +78,12 @@ function BillboardPanelContent({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  // Reset billboard mode when selection changes (selectedItem switched)
+  useEffect(() => {
+    setBillboardMode('compact');
+    setPathIdGlowing(false);
+  }, [selectedItem?.data.id]);
 
   if (!selectedItem) {
     return null;
@@ -75,6 +100,21 @@ function BillboardPanelContent({
     e.stopPropagation();
   };
 
+  // Phase 5.2: Handler to toggle Evidence Mode (not side panel)
+  const handleExpandEvidence = () => {
+    setBillboardMode(billboardMode === 'compact' ? 'evidence' : 'compact');
+  };
+
+  // Phase 5.2: Handler for path/id glow toggle
+  const handlePathIdClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPathIdGlowing(!pathIdGlowing);
+  };
+
+  // Phase 5.2: Limit related nodes to first 5 for compact Evidence Mode
+  const displayedRelatedNodes = (relatedNodes ?? []).slice(0, 5);
+  const hiddenRelatedCount = Math.max(0, (relatedNodes ?? []).length - 5);
+
   return (
     <group
       ref={groupRef}
@@ -90,7 +130,7 @@ function BillboardPanelContent({
         distanceFactor={1}
       >
         <div
-          className={`billboarded-panel ${
+          className={`billboarded-panel billboarded-panel--${billboardMode} ${
             import.meta.env.VITE_LIQUID_PANEL_REVEAL_ENABLED !== 'false' ? 'billboarded-panel--reveal' : ''
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -118,70 +158,162 @@ function BillboardPanelContent({
             <h3 className="billboarded-panel-title">{title}</h3>
           </div>
 
-          {/* Description (Phase 5.1) — only if present */}
-          {description && (
-            <p className="billboarded-panel-description">{description}</p>
-          )}
-
-          {/* Tags (Phase 5.1) — only if present */}
-          {tags.length > 0 && (
-            <div className="billboarded-panel-tags">
-              {tags.map((tag: string) => (
-                <span key={tag} className="billboarded-panel-tag">
-                  {tag}
-                </span>
-              ))}
-              {item.tags && item.tags.length > 3 && (
-                <span className="billboarded-panel-tag-more">
-                  +{item.tags.length - 3}
-                </span>
+          {/* Compact Mode Content (Phase 5.1) */}
+          {billboardMode === 'compact' && (
+            <>
+              {/* Description — only if present */}
+              {description && (
+                <p className="billboarded-panel-description">{description}</p>
               )}
-            </div>
+
+              {/* Tags — only if present */}
+              {tags.length > 0 && (
+                <div className="billboarded-panel-tags">
+                  {tags.map((tag: string) => (
+                    <span key={tag} className="billboarded-panel-tag">
+                      {tag}
+                    </span>
+                  ))}
+                  {item.tags && item.tags.length > 3 && (
+                    <span className="billboarded-panel-tag-more">
+                      +{item.tags.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Metadata row — gravity + context */}
+              <div className="billboarded-panel-metadata">
+                <span className="billboarded-panel-gravity">
+                  {Math.round((gravity ?? 0) * 100)}%
+                </span>
+                {selectedItem.type === 'node' && projectTitle && (
+                  <span className="billboarded-panel-context">
+                    Part of {projectTitle}
+                  </span>
+                )}
+                {selectedItem.type === 'node' && typeof connectedCount === 'number' && connectedCount > 0 && (
+                  <span className="billboarded-panel-connections">
+                    {connectedCount} {connectedCount === 1 ? 'connection' : 'connections'}
+                  </span>
+                )}
+                {selectedItem.type === 'project' && typeof connectedCount === 'number' && connectedCount > 0 && (
+                  <span className="billboarded-panel-connections">
+                    {connectedCount} {connectedCount === 1 ? 'node' : 'nodes'}
+                  </span>
+                )}
+              </div>
+
+              {/* More / Evidence Mode toggle (Phase 5.2) */}
+              {(relatedNodes ?? []).length > 0 && (
+                <button
+                  className="billboarded-panel-more"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleExpandEvidence();
+                  }}
+                  aria-label="View related signals"
+                  title="View related signals"
+                  type="button"
+                >
+                  More →
+                </button>
+              )}
+
+              {/* Item ID for reference */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="billboarded-panel-id">
+                  <code
+                    className={pathIdGlowing ? 'glowing' : ''}
+                    onClick={handlePathIdClick}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {item.id}
+                  </code>
+                </div>
+              )}
+            </>
           )}
 
-          {/* Metadata row (Phase 5.1) — gravity + context */}
-          <div className="billboarded-panel-metadata">
-            <span className="billboarded-panel-gravity">
-              {Math.round((gravity ?? 0) * 100)}%
-            </span>
-            {selectedItem.type === 'node' && projectTitle && (
-              <span className="billboarded-panel-context">
-                Part of {projectTitle}
-              </span>
-            )}
-            {selectedItem.type === 'node' && typeof connectedCount === 'number' && connectedCount > 0 && (
-              <span className="billboarded-panel-connections">
-                {connectedCount} {connectedCount === 1 ? 'connection' : 'connections'}
-              </span>
-            )}
-            {selectedItem.type === 'project' && typeof connectedCount === 'number' && connectedCount > 0 && (
-              <span className="billboarded-panel-connections">
-                {connectedCount} {connectedCount === 1 ? 'node' : 'nodes'}
-              </span>
-            )}
-          </div>
+          {/* Evidence Mode Content (Phase 5.2) */}
+          {billboardMode === 'evidence' && (
+            <>
+              <div className="billboarded-panel-evidence-header">
+                <button
+                  className="billboarded-panel-back"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleExpandEvidence();
+                  }}
+                  aria-label="Back to compact view"
+                  type="button"
+                >
+                  ← Back
+                </button>
+              </div>
 
-          {/* More / Details button (Phase 3 Current Session) */}
-          {onOpenMorePanel && (
-            <button
-              className="billboarded-panel-more"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenMorePanel();
-              }}
-              aria-label="Open details panel"
-              title="Open details"
-              type="button"
-            >
-              More →
-            </button>
-          )}
+              <div className="billboarded-panel-evidence-container">
+                {displayedRelatedNodes.length > 0 ? (
+                  <>
+                    {displayedRelatedNodes.map((node) => (
+                      <div
+                        key={node.id}
+                        className="billboarded-panel-evidence-card"
+                        data-testid="billboard-evidence-card"
+                        data-node-id={node.id}
+                        data-node-title={node.title}
+                        onMouseEnter={() => {
+                          onEvidenceHover?.(node.id);
+                        }}
+                        onMouseLeave={() => {
+                          onEvidenceLeave?.();
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEvidenceSelect?.(node.id);
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className="evidence-card-header">
+                          <span className="evidence-card-type">{node.type}</span>
+                        </div>
+                        <h4 className="evidence-card-title">{node.title}</h4>
+                        <div className="evidence-card-meta">
+                          <span className="evidence-card-gravity">
+                            {Math.round((node.gravity_score ?? 0) * 100)}%
+                          </span>
+                          {node.relationshipType && (
+                            <span className="evidence-card-relation">{node.relationshipType}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {hiddenRelatedCount > 0 && (
+                      <div className="billboarded-panel-evidence-more">
+                        +{hiddenRelatedCount} more signals
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="billboarded-panel-evidence-empty">
+                    No related signals
+                  </div>
+                )}
+              </div>
 
-          {/* Item ID for reference */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="billboarded-panel-id">
-              <code>{item.id}</code>
-            </div>
+              {/* Item ID in Evidence Mode */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="billboarded-panel-id">
+                  <code
+                    className={pathIdGlowing ? 'glowing' : ''}
+                    onClick={handlePathIdClick}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {item.id}
+                  </code>
+                </div>
+              )}
+            </>
           )}
         </div>
       </Html>
@@ -197,9 +329,12 @@ function BillboardPanelContent({
 export function BillboardedPanel({
   selectedItem,
   onClose,
-  onOpenMorePanel,
   projectTitle,
   connectedCount,
+  relatedNodes,
+  onEvidenceHover,
+  onEvidenceLeave,
+  onEvidenceSelect,
 }: Omit<BillboardedPanelProps, 'position'>) {
   if (!selectedItem) {
     return null;
@@ -220,10 +355,13 @@ export function BillboardedPanel({
     <BillboardPanelContent
       selectedItem={selectedItem}
       onClose={onClose}
-      onOpenMorePanel={onOpenMorePanel}
       position={renderedPosition}
       projectTitle={projectTitle}
       connectedCount={connectedCount}
+      relatedNodes={relatedNodes}
+      onEvidenceHover={onEvidenceHover}
+      onEvidenceLeave={onEvidenceLeave}
+      onEvidenceSelect={onEvidenceSelect}
     />
   );
 }

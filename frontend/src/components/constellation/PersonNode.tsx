@@ -10,6 +10,7 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
+import { getNodeVisualSize } from '../../lib/rendering/nodeSizingConstants';
 
 /**
  * PersonNodeCore: Cyan sphere with pulsing glow animation + hover detection
@@ -18,6 +19,7 @@ import * as THREE from 'three';
  */
 function PersonNodeCore({ onHoverStart, onHoverEnd }: { onHoverStart: () => void; onHoverEnd: () => void }) {
   const sphereRef = useRef<THREE.Mesh>(null);
+  const personVisualSize = useMemo(() => getNodeVisualSize('person'), []);
 
   // Slow breathing animation: subtle scale pulse (1.0 to 1.15)
   // Phase 10.0b: Increased period to 5s and reduced amplitude for calm, intentional feel
@@ -51,7 +53,7 @@ function PersonNodeCore({ onHoverStart, onHoverEnd }: { onHoverStart: () => void
       onPointerEnter={onHoverStart}
       onPointerLeave={onHoverEnd}
     >
-      <sphereGeometry args={[1.5, 32, 32]} />
+      <sphereGeometry args={[personVisualSize, 32, 32]} />
       <meshBasicMaterial
         color={new THREE.Color(0.2, 1.0, 1.0)} // Brighter electric cyan (more saturated, more present)
         transparent
@@ -64,11 +66,15 @@ function PersonNodeCore({ onHoverStart, onHoverEnd }: { onHoverStart: () => void
 /**
  * PersonTorus: Cyan ring around person node
  * Echoes the ProjectTorusRings pattern
+ * Scales proportionally with person visual size
  */
 function PersonTorus() {
+  const personVisualSize = useMemo(() => getNodeVisualSize('person'), []);
+  const torusRadius = personVisualSize * 1.667; // Maintains 2.5 ratio from old 1.5 core size
+
   const torusGeometry = useMemo(
-    () => new THREE.TorusGeometry(2.5, 0.25, 16, 100),
-    []
+    () => new THREE.TorusGeometry(torusRadius, 0.25, 16, 100),
+    [torusRadius]
   );
 
   return (
@@ -88,10 +94,13 @@ function PersonTorus() {
  * PersonGlowSprite: Radial glow halo with breathing opacity
  * Echoes the ProjectGlowSprites pattern
  * Pulsing opacity creates layered depth with core sphere
+ * Scales proportionally with person visual size
  */
 function PersonGlowSprite() {
   const spriteRef = useRef<THREE.Sprite>(null);
   const materialRef = useRef<THREE.SpriteMaterial>(null);
+  const personVisualSize = useMemo(() => getNodeVisualSize('person'), []);
+  const glowSpriteScale = personVisualSize * 4.5; // Maintains 9.0 scale from old 1.5 core size
 
   // Create gradient texture
   const texture = useMemo(() => {
@@ -142,7 +151,7 @@ function PersonGlowSprite() {
   if (!texture) return null;
 
   return (
-    <sprite ref={spriteRef} position={[0, 0, -0.1]} scale={9.0}>
+    <sprite ref={spriteRef} position={[0, 0, -0.1]} scale={glowSpriteScale}>
       <spriteMaterial
         ref={materialRef}
         map={texture}
@@ -157,12 +166,16 @@ function PersonGlowSprite() {
 /**
  * PersonLabel: Text label for the person node
  * Shows name and title (always visible)
+ * Scales with person visual size to maintain visual balance
  */
 function PersonLabel() {
+  const personVisualSize = useMemo(() => getNodeVisualSize('person'), []);
+  const labelOffsetY = personVisualSize * 1.5 + 1.0; // Offset proportional to person size
+
   return (
     <>
       <Text
-        position={[0, 3.0, 1.5]}
+        position={[0, labelOffsetY, 1.5]}
         fontSize={0.8}
         color={0x00FFCC}
         maxWidth={4.0}
@@ -174,7 +187,7 @@ function PersonLabel() {
         Prentiss
       </Text>
       <Text
-        position={[0, 2.3, 1.5]}
+        position={[0, labelOffsetY - 0.7, 1.5]}
         fontSize={0.5}
         color={0x00BBAA}
         maxWidth={4.0}

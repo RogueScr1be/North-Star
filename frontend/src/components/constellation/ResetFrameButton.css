@@ -1,0 +1,68 @@
+.reset-frame-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999;
+
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 255, 200, 0.4);
+  background-color: rgba(0, 20, 40, 0.8);
+  color: #00FFC8;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  /* Accessibility: ensure visible focus ring */
+  outline: none;
+
+  /* Hover state */
+  &:hover:not(:disabled) {
+    background-color: rgba(0, 30, 50, 0.95);
+    border-color: rgba(0, 255, 200, 0.8);
+    box-shadow: 0 0 12px rgba(0, 255, 200, 0.4);
+  }
+
+  /* Focus state for keyboard navigation */
+  &:focus-visible {
+    outline: 2px solid #00FFC8;
+    outline-offset: 2px;
+  }
+
+  /* Active/pressed state */
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  /* Disabled state */
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* Support for SCSS nesting (fallback for non-SCSS) */
+.reset-frame-button:hover:not(:disabled) {
+  background-color: rgba(0, 30, 50, 0.95);
+  border-color: rgba(0, 255, 200, 0.8);
+  box-shadow: 0 0 12px rgba(0, 255, 200, 0.4);
+}
+
+.reset-frame-button:focus-visible {
+  outline: 2px solid #00FFC8;
+  outline-offset: 2px;
+}
+
+.reset-frame-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.reset-frame-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

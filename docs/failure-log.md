@@ -1,5 +1,23 @@
 # Failure Log & Guardrails
 
+## Phase 6.1: Edge Pulse Animation — Browser Verification Required (2026-05-03)
+
+**Pattern:** Edge pulse animation was claimed implemented but missing in runtime. requestAnimationFrame loop had closure bug: `frameId` was referenced before assignment, breaking animation chain.
+
+**Root Cause:** Line 664 contained `frameId;` (dead statement) instead of properly chaining requestAnimationFrame. Frame ID scoping issue prevented animation from firing continuously.
+
+**Guardrail:** Never claim animation/pulse features exist until visually confirmed in browser:
+- Code review alone cannot catch requestAnimationFrame loop bugs or timing issues
+- Closure scoping issues may compile cleanly but fail at runtime
+- Always test: select node → watch for edge pulse → confirm opacity oscillation → verify no console errors
+- Do not mark animation features PASS from code inspection; require browser evidence
+
+**Fix Applied:** Restructured animation loop with explicit frameId scoping, proper recursive requestAnimationFrame pattern, safe cleanup.
+
+**Commit fixing this phase:** (current session, Phase 6.1)
+
+---
+
 ## Phase 4C: Camera/Billboard Behavior — Browser QA Requirement (2026-05-01)
 
 **Pattern:** Inferred camera and billboard behavior from code inspection caused false confidence. Marked PASS from static analysis without verifying active rendering paths.

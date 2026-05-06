@@ -12,10 +12,10 @@ import { RenderableGraph } from '../../lib/graph/graphTransforms';
 import { computeGraphBounds, computeCameraParams, CameraParams } from '../../lib/graph/graphBounds';
 import { GraphCamera } from './GraphCamera';
 import { PersonNode } from './PersonNode';
-import { PrimaryProjectSatellites } from './PrimaryProjectSatellites';
 import { NodeGeometry } from './NodeGeometry';
 import { PulsarNodeGeometry } from './PulsarNodeGeometry';
 import { BillboardedPanel } from './BillboardedPanel';
+import { EvidenceHoverLine } from './EvidenceHoverLine';
 import {
   HighlightState,
   CitedState,
@@ -25,6 +25,8 @@ import { GraphNode, GraphProject } from "../../lib/graph/graphTypes";
 import { SelectedItem } from '../../hooks/useSelection';
 import type { SemanticVisibility } from '../../lib/graph/graphSemantics';
 import { logNodeSelected, logProjectSelected } from '../../lib/analytics/constellationAnalytics';
+import { getNodeVisualSize, getNodePickingSize } from '../../lib/rendering/nodeSizingConstants';
+import PostProcessingEffects from './PostProcessingEffects';
 
 interface CanvasSceneProps {
   graph: RenderableGraph;
@@ -39,7 +41,6 @@ interface CanvasSceneProps {
   selectedProjectId?: string | null; // Phase C: for selection-based project labels
   selectedItem?: SelectedItem | null; // Phase 3: Selected item for anchored panel
   onClearSelection?: () => void; // Phase 3: Clear selection callback
-  onOpenMorePanel?: () => void; // Phase 3 (Current Session): Open side panel from billboard
   citedState?: CitedState; // Phase 5.6: Answer evidence highlighting
   cameraRef?: React.MutableRefObject<THREE.OrthographicCamera | null>; // Phase 5.6: Camera animation
   controlsRef?: React.MutableRefObject<any | null>; // Phase 8.0D: OrbitControls reference (drei component)
@@ -47,6 +48,10 @@ interface CanvasSceneProps {
   onControlsReady?: (controls: any) => void; // Phase 8.0D: Callback when OrbitControls is ready
   onCancelAnimation?: () => void; // Phase D: Cancel active camera animation on user gesture
   isAnimatingRef?: React.MutableRefObject<boolean>; // Phase D: Track if animation is active
+  hoveredEvidenceNodeId?: string | null; // Phase 5.4: Evidence card hover state
+  onEvidenceHover?: (nodeId: string) => void; // Phase 5.4: Evidence card hover callback
+  onEvidenceLeave?: () => void; // Phase 5.4: Evidence card leave callback
+  onEvidenceSelect?: (nodeId: string) => void; // Phase 6.1: Evidence card selection callback
 }
 
 /**
@@ -127,6 +132,7 @@ function NodesGeometries({
   semanticVisibility,
   selectedNodeId,
   citedState,
+  hoveredEvidenceNodeId,
 }: {
   graph: RenderableGraph;
   onNodeClick?: (node: GraphNode) => void;
@@ -134,6 +140,7 @@ function NodesGeometries({
   semanticVisibility?: SemanticVisibility | null;
   selectedNodeId?: string | null;
   citedState?: CitedState;
+  hoveredEvidenceNodeId?: string | null;
 }) {
   // Phase 2: Check if Pulsar mode is enabled
   const pulsarEnabled = import.meta.env.VITE_PULSAR_NODES_ENABLED === 'true';
@@ -182,6 +189,7 @@ function NodesGeometries({
             selectedNodeId={selectedNodeId}
             onNodeClick={onNodeClick}
             isCited={isNodeCited(node.id)}
+            hoveredForEvidence={hoveredEvidenceNodeId === node.id}
           />
         )
       ))}
@@ -237,9 +245,9 @@ function ProjectsPoints({
     const col = new Float32Array(visibleProjects.length * 4);
 
     for (let i = 0; i < visibleProjects.length; i++) {
-      // STEP 2: Strong project anchor color (pure magenta for maximum saturation)
+      // STEP 2: Strong project anchor color (vibrant magenta-cyan blend for premium luminance)
       let r = 1.0;
-      let g = 0.0;
+      let g = 0.1;
       let b = 1.0;
 
       // Brighten selected project (Part B: visual isolation)
@@ -261,14 +269,14 @@ function ProjectsPoints({
     return col;
   }, [visibleProjects, selectedProjectId]);
 
-  // Create size array for visible projects (Phase A: premium anchor sizing for visibility)
+  // Create size array for visible projects (Phase 5.3: centralized hierarchy via nodeSizingConstants)
   const sizes = useMemo(() => {
     if (visibleProjects.length === 0) return new Float32Array();
 
     const sz = new Float32Array(visibleProjects.length);
     for (let i = 0; i < visibleProjects.length; i++) {
-      // Phase 7.2: Scaled to 6 + gravity*9 for strong visual hierarchy (projects dominate)
-      let baseSize = 6 + visibleProjects[i].gravity_score * 9;
+      // Phase 5.3: Use centralized nodeSizingConstants to enforce hierarchy
+      let baseSize = getNodeVisualSize('project', visibleProjects[i].gravity_score);
 
       // Part B: Increase selected project size by 1.15× for visual emphasis
       if (selectedProjectId && visibleProjects[i].id === selectedProjectId) {
@@ -348,9 +356,9 @@ function ProjectTorusRings({
           >
             <primitive object={torusGeometry} attach="geometry" />
             <meshBasicMaterial
-              color={new THREE.Color(0.0, 1.0, 0.9)} // Cyan
+              color={new THREE.Color(0.0, 1.0, 0.95)} // Bright cyan
               transparent
-              opacity={0.5}
+              opacity={0.9}
               wireframe={false}
             />
           </mesh>
@@ -385,10 +393,10 @@ function ProjectGlowSprites({
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    // Draw radial gradient (pink center fade to transparent)
+    // Phase 5.4.3: Draw radial gradient (enhanced luminous center fade to transparent)
     const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gradient.addColorStop(0, 'rgba(255, 0, 200, 0.8)'); // Pink
-    gradient.addColorStop(1, 'rgba(255, 0, 200, 0)'); // Transparent
+    gradient.addColorStop(0, 'rgba(255, 0, 220, 1.0)'); // Luminous magenta-cyan blend, max opacity
+    gradient.addColorStop(1, 'rgba(255, 0, 220, 0)'); // Transparent
 
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 64, 64);
@@ -408,16 +416,23 @@ function ProjectGlowSprites({
         const [expandedX, expandedY, expandedZ] = applyRenderLayerSpacing(proj.position, 1.2, 1.6);
         const pos: [number, number, number] = [expandedX, expandedY, expandedZ];
 
-        // Phase 7.1: Scale sprite by gravity: 3.5 + gravity*3.5 (enhanced luminous anchor halo)
-        const spriteScale = 3.5 + (proj.gravity_score ?? 0) * 3.5;
+        // Phase 5.3: Scale sprite proportional to project visual size via nodeSizingConstants
+        const projectVisualSize = getNodeVisualSize('project', proj.gravity_score ?? 0);
+        const spriteScale = projectVisualSize * 4.0; // Halo scale increased for premium anchor luminance
 
         return (
           <sprite
             key={`glow-${proj.id}`}
             position={[pos[0], pos[1], pos[2] - 0.1]} // Slightly behind
             scale={spriteScale}
+            renderOrder={-1}
           >
-            <spriteMaterial map={texture} transparent sizeAttenuation={true} />
+            <spriteMaterial
+              map={texture}
+              transparent
+              sizeAttenuation={true}
+              depthWrite={false}
+            />
           </sprite>
         );
       })}
@@ -450,11 +465,14 @@ function StarField() {
       const r3 = next();
       const r4 = next();
 
+      // Part 5: Volumetric starfield - 3D scatter with depth layers
+      // Distribute stars throughout a volumetric cube around the graph
+      // Z range: -200 to +150 (deep background to far foreground, enveloping the scene)
       starList.push({
-        x: (r1 - 0.5) * 200,             // -100 to +100 (equal distribution)
-        y: (r2 - 0.5) * 200,             // -100 to +100 (equal distribution)
-        z: -80 - r3 * 100,               // -180 to -80 (strongly background-biased for depth)
-        size: 0.15 + r4 * 0.25,          // 0.15 to 0.40 (slight increase for variation)
+        x: (r1 - 0.5) * 240,             // -120 to +120 (wider XY for volumetric feel)
+        y: (r2 - 0.5) * 240,             // -120 to +120 (wider XY for volumetric feel)
+        z: -200 + r3 * 350,              // -200 to +150 (true 3D volumetric distribution, depth layering)
+        size: 0.12 + r4 * 0.28,          // 0.12 to 0.40 (maintain variation)
       });
     }
     return starList;
@@ -481,14 +499,23 @@ function StarField() {
   }, [stars]);
 
   // Create color array with blue-biased colors and depth-based opacity variation
+  // Part 5: Updated depth calculation for volumetric starfield (-200 to +150 Z range)
+  // Phase 6.0: CRITICAL: Clamp star luminance <0.8 to prevent bloom washout
+  // Stars at max will be (0.49, 0.56, 0.7) = 0.58 max luminance, well below 0.8 bloom threshold
   const colors = useMemo(() => {
     const col = new Float32Array(stars.length * 3);
     for (let i = 0; i < stars.length; i++) {
-      const b = 0.7 + Math.random() * 0.3; // Base blue: 0.7 to 1.0
-      const depthFade = 1.0 - Math.abs(stars[i].z) / 180; // Closer stars brighter, distant stars dimmer
-      col[i * 3] = (b * 0.7) * depthFade;     // R: blue × 0.7, modulated by depth
-      col[i * 3 + 1] = (b * 0.8) * depthFade; // G: blue × 0.8, modulated by depth
-      col[i * 3 + 2] = b * depthFade;         // B: full blue, modulated by depth
+      // Clamped blue: 0.5 to 0.7 (was 0.7 to 1.0) to stay below bloom threshold
+      const b = 0.5 + Math.random() * 0.2;
+      // Depth fade: stars closer to camera (near z=0) are brighter, distant stars are dimmer
+      // Clamp depth calculation: graph occupies roughly -10 to +10 in Z, stars extend -200 to +150
+      const depthFade = 1.0 - Math.abs(stars[i].z) / 200; // Normalize to volumetric range
+      const clampedFade = Math.max(0.2, Math.min(1.0, depthFade)); // Clamp to maintain visibility
+      // Phase 6.0: Reduced multipliers to ensure max luminance < 0.8
+      // Max luminance: (0.35, 0.392, 0.56) = 0.56 (well below 0.8 threshold)
+      col[i * 3] = (b * 0.5) * clampedFade;     // R: blue × 0.5, modulated by depth
+      col[i * 3 + 1] = (b * 0.56) * clampedFade; // G: blue × 0.56, modulated by depth
+      col[i * 3 + 2] = b * clampedFade;         // B: full blue, modulated by depth
     }
     return col;
   }, [stars]);
@@ -500,7 +527,8 @@ function StarField() {
         <bufferAttribute attach="attributes-color" array={colors} count={stars.length} itemSize={3} />
         <bufferAttribute attach="attributes-size" array={sizes} count={stars.length} itemSize={1} />
       </bufferGeometry>
-      <pointsMaterial size={4} sizeAttenuation={true} vertexColors transparent opacity={0.35} />
+      {/* Phase 6.0: Reduced opacity from 0.35 to 0.25 to ensure luminance stays well below 0.8 bloom threshold */}
+      <pointsMaterial size={4} sizeAttenuation={true} vertexColors transparent opacity={0.25} />
     </points>
   );
 }
@@ -560,27 +588,25 @@ function EdgesLineSegments({
     if (visibleEdges.length === 0) return new Float32Array();
 
     const col = new Float32Array(visibleEdges.length * 8); // 2 vertices × 4 components (RGBA)
-    const focusDimmingEnabled = import.meta.env.VITE_FOCUS_DIMMING_ENABLED !== 'false';
     const selectedId = highlightState?.selectedId;
 
     for (let i = 0; i < visibleEdges.length; i++) {
       const edge = visibleEdges[i];
       const isConnected = highlightState?.connectedEdgeIds?.has(edge.id) ?? false;
 
-      // Phase 5.4: Semantic color + opacity emphasis for edges (atmosphere refinement)
-      // Connected edges (selected relationship): bright cyan to emphasize path connectivity
-      // Unrelated edges: dim cyan-blue (atmospheric, not harsh gray)
-      let [r, g, b] = isConnected
-        ? [0.0, 1.0, 1.0] // Connected: bright cyan, clearly highlights active paths
-        : [0.1, 0.3, 0.4]; // Unrelated: dim cyan-blue, atmospheric filament feel
+      // Part 4: Edge visibility strategy - only show edges when node selected
+      // When NO selection: all edges invisible (opacity 0)
+      // When selection active:
+      //   - Connected edges: bright cyan (0.85 opacity) to show path connectivity
+      //   - Unrelated edges: completely invisible (0 opacity)
 
-      // Phase 4B: Focus dimming for edges
-      // Connected edges: high visibility (0.95) to emphasize semantic connectivity
-      // Unrelated edges: minimal visibility (0.16) normally, 0.08 when focus dimming active
-      let opacity = isConnected ? 0.95 : 0.16;
-      if (focusDimmingEnabled && selectedId && !isConnected) {
-        opacity = 0.08; // Phase 4B: Dim unrelated edges when selection is active
-      }
+      // If no node is selected, hide all edges completely
+      let opacity = selectedId ? (isConnected ? 0.85 : 0.0) : 0.0;
+
+      // Set color based on connection status (only used when opacity > 0)
+      let [r, g, b] = isConnected
+        ? [0.0, 1.0, 0.9] // Connected: bright cyan-blue when visible
+        : [0.1, 0.3, 0.5]; // Unrelated: not visible (opacity 0)
 
       // Both vertices get same color with opacity
       col[i * 8] = r;
@@ -596,8 +622,10 @@ function EdgesLineSegments({
     return col;
   }, [visibleEdges, highlightState, citedState, semanticVisibility]);
 
-  // Animate connected edge pulse (Phase 5.4: subtle shimmer on active paths)
+  // Animate connected edge pulse (Phase 6.1: visible shimmer on active paths)
   useEffect(() => {
+    let frameId: number | null = null;
+
     const animate = () => {
       if (!lineRef.current || !baseColorsRef.current || !highlightState?.connectedEdgeIds.size) {
         pulseTimeRef.current = 0;
@@ -624,24 +652,23 @@ function EdgesLineSegments({
       for (let i = 0; i < visibleEdges.length; i++) {
         const edge = visibleEdges[i];
         if (highlightState.connectedEdgeIds.has(edge.id)) {
-          // Gentle pulse: 0.7 to 1.0 opacity modulation
+          // Subtle pulse: 0.75 to 1.0 opacity modulation (alive but restrained)
           const pulse = 0.85 + Math.sin(pulseTimeRef.current) * 0.15;
-          newColors[i * 8 + 3] *= pulse;
-          newColors[i * 8 + 7] *= pulse;
+          newColors[i * 8 + 3] = Math.max(0.75, newColors[i * 8 + 3] * pulse);
+          newColors[i * 8 + 7] = Math.max(0.75, newColors[i * 8 + 7] * pulse);
         }
       }
 
       colorAttr.array = newColors;
       colorAttr.needsUpdate = true;
+
+      frameId = requestAnimationFrame(animate);
     };
 
-    const frameId = requestAnimationFrame(function update() {
-      animate();
-      frameId;
-      requestAnimationFrame(update);
-    });
-
-    return () => cancelAnimationFrame(frameId);
+    frameId = requestAnimationFrame(animate);
+    return () => {
+      if (frameId !== null) cancelAnimationFrame(frameId);
+    };
   }, [visibleEdges, highlightState]);
 
   if (visibleEdges.length === 0) return null;
@@ -688,54 +715,13 @@ function ProjectLabels({ graph, selectedProjectId: _selectedProjectId }: { graph
   );
 }
 
-/**
- * NodeLabels: Render text labels for selected nodes only (Phase 5.3)
- * Reduces visual clutter while keeping important nodes readable
- * Phase 6.0: Support both API and D3 layout positions
- */
-function NodeLabels({
-  graph,
-  selectedNodeId,
-}: {
-  graph: RenderableGraph;
-  selectedNodeId?: string | null;
-}) {
-  // Only show label for selected node
-  const selectedNode = selectedNodeId ? graph.nodes.find((n) => n.id === selectedNodeId) : null;
-
-  if (!selectedNode) {
-    return null;
-  }
-
-  // Phase 8.0A: D3 shelved, API-only positions
-  const labelX = selectedNode.position[0];
-  const labelY = selectedNode.position[1];
-  const labelZ = selectedNode.position[2];
-
-  // FIX (DEMO LOCK BUG #4): Offset label above and in front of node to avoid obscuring
-  const labelOffsetX = 0; // Center horizontally on node
-  const labelOffsetY = 1.5; // Position above node (was -1.0, now inverted and increased)
-  const labelOffsetZ = 0.5; // Push slightly forward (away from camera)
-
-  return (
-    <Text
-      key={`label-${selectedNode.id}`}
-      position={[labelX + labelOffsetX, labelY + labelOffsetY, labelZ + labelOffsetZ]}
-      fontSize={0.5}
-      color={0xcccccc}
-      maxWidth={2.0}
-      textAlign="center"
-      anchorX="center"
-      anchorY="bottom"
-    >
-      {selectedNode.title}
-    </Text>
-  );
-}
+// NodeLabels function removed - label rendering now handled by Constellation3DScene.tsx NodeLabels component
+// (semantic multi-tier system with zoom-aware opacity, single source of truth)
 
 /**
  * PickableNodes: Invisible mesh layer for visible node click detection (Phase 5.5: semantic filtering)
  * Phase 5.2: Increased hit areas by 2.5x for reliable interaction
+ * Phase 5.3: Centralized sizing via getNodePickingSize() to enforce hierarchy (person > project > all others)
  * Provides cursor feedback on hover
  * Phase 5.9: Analytics wiring for node selection
  * Phase 6.2A: Position aligned with layout engine (D3 or API) to fix picking misalignment
@@ -763,28 +749,32 @@ function PickableNodes({
 
   return (
     <>
-      {visibleNodes.map((node) => (
-        <mesh
-          key={`picker-node-${node.id}`}
-          position={getPickerPosition(node)}
-          onPointerEnter={() => {
-            document.body.style.cursor = 'pointer';
-          }}
-          onPointerLeave={() => {
-            document.body.style.cursor = 'auto';
-          }}
-          onPointerUp={(e) => {
-            e.stopPropagation();
-            // Phase 5.9: Fire analytics event at source (canvas click)
-            logNodeSelected(node, 'canvas_click');
-            onNodeClick?.(node);
-          }}
-        >
-          {/* Phase 5.2: Increased from 1.0 + gravity*2 to (2.5 + gravity*5) for forgiving hit areas */}
-          <sphereGeometry args={[2.5 + node.gravity_score * 5, 8, 8]} />
-          <meshBasicMaterial colorWrite={false} depthTest={false} />
-        </mesh>
-      ))}
+      {visibleNodes.map((node) => {
+        // Phase 5.3: Use centralized sizing to enforce hierarchy
+        const pickingSize = getNodePickingSize(node.type, node.gravity_score);
+        return (
+          <mesh
+            key={`picker-node-${node.id}`}
+            position={getPickerPosition(node)}
+            onPointerEnter={() => {
+              document.body.style.cursor = 'pointer';
+            }}
+            onPointerLeave={() => {
+              document.body.style.cursor = 'auto';
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              // Phase 5.9: Fire analytics event at source (canvas click)
+              logNodeSelected(node, 'canvas_click');
+              onNodeClick?.(node);
+            }}
+          >
+            {/* Phase 5.3: Centralized picking sizes via getNodePickingSize() */}
+            <sphereGeometry args={[pickingSize, 8, 8]} />
+            <meshBasicMaterial colorWrite={false} depthTest={false} />
+          </mesh>
+        );
+      })}
     </>
   );
 }
@@ -792,6 +782,7 @@ function PickableNodes({
 /**
  * PickableProjects: Invisible mesh layer for visible project click detection (Phase 5.5: semantic filtering)
  * Phase 5.2: Increased hit areas by 2.5x for reliable interaction
+ * Phase 5.3: Centralized sizing via getNodePickingSize() to enforce hierarchy (person > project > all others)
  * Provides cursor feedback on hover
  * Phase 5.9: Analytics wiring for project selection
  * Phase 6.2A: Position aligned with layout engine (D3 or API) to fix picking misalignment
@@ -822,29 +813,33 @@ function PickableProjects({
 
   return (
     <>
-      {visibleProjects.map((proj) => (
-        <mesh
-          key={`picker-project-${proj.id}`}
-          position={getPickerPosition(proj)}
-          onPointerEnter={() => {
-            document.body.style.cursor = 'pointer';
-          }}
-          onPointerLeave={() => {
-            document.body.style.cursor = 'auto';
-          }}
-          onPointerUp={(e) => {
-            e.stopPropagation();
-            // Phase 5.9: Fire analytics event at source (canvas click), count nodes in project
-            const nodeCountInProject = graph.nodes.filter(n => n.project_id === proj.id).length;
-            logProjectSelected(proj, nodeCountInProject, 'canvas_click');
-            onProjectClick?.(proj);
-          }}
-        >
-          {/* Phase 5.2: Increased from 1.5 + gravity*3 to (3.75 + gravity*7.5) for forgiving hit areas */}
-          <sphereGeometry args={[3.75 + proj.gravity_score * 7.5, 8, 8]} />
-          <meshBasicMaterial colorWrite={false} depthTest={false} />
-        </mesh>
-      ))}
+      {visibleProjects.map((proj) => {
+        // Phase 5.3: Use centralized sizing to enforce hierarchy
+        const pickingSize = getNodePickingSize('project', proj.gravity_score);
+        return (
+          <mesh
+            key={`picker-project-${proj.id}`}
+            position={getPickerPosition(proj)}
+            onPointerEnter={() => {
+              document.body.style.cursor = 'pointer';
+            }}
+            onPointerLeave={() => {
+              document.body.style.cursor = 'auto';
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              // Phase 5.9: Fire analytics event at source (canvas click), count nodes in project
+              const nodeCountInProject = graph.nodes.filter(n => n.project_id === proj.id).length;
+              logProjectSelected(proj, nodeCountInProject, 'canvas_click');
+              onProjectClick?.(proj);
+            }}
+          >
+            {/* Phase 5.3: Centralized picking sizes via getNodePickingSize() */}
+            <sphereGeometry args={[pickingSize, 8, 8]} />
+            <meshBasicMaterial colorWrite={false} depthTest={false} />
+          </mesh>
+        );
+      })}
     </>
   );
 }
@@ -898,12 +893,15 @@ function SceneContent({
   selectedProjectId,
   selectedItem,
   onClearSelection,
-  onOpenMorePanel,
   citedState,
   cameraRef,
   controlsRef,
   onCameraReady,
   onControlsReady,
+  hoveredEvidenceNodeId,
+  onEvidenceHover,
+  onEvidenceLeave,
+  onEvidenceSelect,
 }: {
   graph: RenderableGraph;
   cameraParams: CameraParams;
@@ -917,12 +915,15 @@ function SceneContent({
   selectedProjectId?: string | null;
   selectedItem?: SelectedItem | null;
   onClearSelection?: () => void;
-  onOpenMorePanel?: () => void;
   citedState?: CitedState;
   cameraRef?: React.MutableRefObject<THREE.OrthographicCamera | null>;
   controlsRef?: React.MutableRefObject<any | null>;
   onCameraReady?: (camera: any) => void;
   onControlsReady?: (controls: any) => void;
+  hoveredEvidenceNodeId?: string | null;
+  onEvidenceHover?: (nodeId: string) => void;
+  onEvidenceLeave?: () => void;
+  onEvidenceSelect?: (nodeId: string) => void;
 }) {
   // Disable raycasting on background planes to allow clicks to pass through to nodes/projects
   const bgPlane1Ref = useRef<THREE.Mesh>(null);
@@ -942,9 +943,10 @@ function SceneContent({
   }, [graph, onUnresolvedEdgesChange]);
 
   // Phase 5.1: Derive projectTitle and connectedCount for billboarded panel
+  // Phase 5.2: Derive relatedNodes for Evidence Mode
   // Compute these values once per selection change; pass as simple props to BillboardedPanel
-  const { projectTitle, connectedCount } = useMemo(() => {
-    if (!selectedItem) return { projectTitle: undefined, connectedCount: undefined };
+  const { projectTitle, connectedCount, relatedNodes } = useMemo(() => {
+    if (!selectedItem) return { projectTitle: undefined, connectedCount: undefined, relatedNodes: undefined };
 
     const item = selectedItem.data as any;
 
@@ -958,15 +960,56 @@ function SceneContent({
     // Compute connectedCount: count edges connected to this item
     let count = 0;
     if (selectedItem.type === 'node') {
+      // Fix: edges use source_id/target_id, not source/target
       count = (graph.edges ?? []).filter(
-        e => e.source === item.id || e.target === item.id
+        e => e.source_id === item.id || e.target_id === item.id
       ).length;
     } else if (selectedItem.type === 'project') {
       // For projects, count nodes in the project
       count = (graph.nodes ?? []).filter(n => n.project_id === item.id).length;
     }
 
-    return { projectTitle: title, connectedCount: count };
+    // Compute relatedNodes: Phase 5.2: Find nodes connected to selected item
+    let related: any[] = [];
+    if (selectedItem.type === 'node') {
+      // Fix: edges use source_id/target_id, not source/target
+      const connectedEdges = (graph.edges ?? []).filter(
+        e => e.source_id === item.id || e.target_id === item.id
+      );
+      const connectedNodeIds = new Set<string>();
+      connectedEdges.forEach(edge => {
+        if (edge.source_id === item.id) connectedNodeIds.add(edge.target_id);
+        if (edge.target_id === item.id) connectedNodeIds.add(edge.source_id);
+      });
+      related = Array.from(connectedNodeIds)
+        .map(nodeId => {
+          const node = graph.nodes.find(n => n.id === nodeId);
+          const edge = connectedEdges.find(e =>
+            (e.source_id === item.id && e.target_id === nodeId) ||
+            (e.target_id === item.id && e.source_id === nodeId)
+          );
+          return node ? {
+            id: node.id,
+            title: node.title,
+            type: node.type,
+            gravity_score: node.gravity_score,
+            relationshipType: edge?.relationship_type,
+          } : null;
+        })
+        .filter(Boolean);
+    } else if (selectedItem.type === 'project') {
+      // For projects, related nodes are the nodes in that project
+      related = (graph.nodes ?? [])
+        .filter(n => n.project_id === item.id)
+        .map(node => ({
+          id: node.id,
+          title: node.title,
+          type: node.type,
+          gravity_score: node.gravity_score,
+        }));
+    }
+
+    return { projectTitle: title, connectedCount: count, relatedNodes: related };
   }, [selectedItem, graph.nodes, graph.projects, graph.edges]);
 
   // FIX (DEMO LOCK BUG #5): Animate camera to frame selected project as hero shot
@@ -1042,12 +1085,10 @@ function SceneContent({
       {/* Origin constellation (Phase 10.0b: Central person node) */}
       <PersonNode />
 
-      {/* Stage 1.5: Primary project satellites + origin filaments */}
-      <PrimaryProjectSatellites graph={graph} />
-
       {/* Geometry */}
       <EdgesLineSegments graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} citedState={citedState} />
-      <NodesGeometries graph={graph} onNodeClick={onNodeClick} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedNodeId={selectedNodeId} citedState={citedState} />
+      {selectedItem && hoveredEvidenceNodeId && <EvidenceHoverLine selectedItem={selectedItem} hoveredEvidenceNodeId={hoveredEvidenceNodeId} nodes={graph.nodes} />}
+      <NodesGeometries graph={graph} onNodeClick={onNodeClick} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedNodeId={selectedNodeId} citedState={citedState} hoveredEvidenceNodeId={hoveredEvidenceNodeId} />
       <ProjectsPoints graph={graph} semanticVisibility={semanticVisibility} selectedProjectId={selectedProjectId} />
 
       {/* Phase A: Hybrid anchor rendering (torus rings + glow sprites) */}
@@ -1056,10 +1097,10 @@ function SceneContent({
 
       {/* Labels */}
       <ProjectLabels graph={graph} selectedProjectId={selectedProjectId} />
-      <NodeLabels graph={graph} selectedNodeId={selectedNodeId} />
+      {/* NodeLabels moved to Constellation3DScene.tsx (semantic multi-tier system) - single source of truth */}
 
       {/* Phase 3: Billboarded panel (quaternion-synced, always faces camera) */}
-      {selectedItem && <BillboardedPanel selectedItem={selectedItem} onClose={onClearSelection ?? (() => {})} onOpenMorePanel={onOpenMorePanel} projectTitle={projectTitle} connectedCount={connectedCount} />}
+      {selectedItem && <BillboardedPanel selectedItem={selectedItem} onClose={onClearSelection ?? (() => {})} projectTitle={projectTitle} connectedCount={connectedCount} relatedNodes={relatedNodes} onEvidenceHover={onEvidenceHover} onEvidenceLeave={onEvidenceLeave} onEvidenceSelect={onEvidenceSelect} />}
 
       {/* Interactive picking layer */}
       <PickablePerson onPersonClick={onPersonClick} />
@@ -1092,7 +1133,6 @@ export function CanvasScene({
   selectedProjectId,
   selectedItem,
   onClearSelection,
-  onOpenMorePanel,
   citedState,
   cameraRef,              // Phase 8.0D: Parent-owned camera ref
   controlsRef,            // Phase 8.0D: Parent-owned controls ref
@@ -1100,6 +1140,10 @@ export function CanvasScene({
   onControlsReady,        // Phase 8.0D: Callback when controls are ready
   onCancelAnimation,
   isAnimatingRef,
+  hoveredEvidenceNodeId,  // Phase 5.4: Evidence card hover state
+  onEvidenceHover,        // Phase 5.4: Evidence card hover callback
+  onEvidenceLeave,        // Phase 5.4: Evidence card leave callback
+  onEvidenceSelect,       // Phase 5.4: Evidence card selection callback
 }: CanvasSceneProps) {
   // Disable raycasting on background plane to allow clicks to pass through to nodes/projects
   const bgPlane2Ref = useRef<THREE.Mesh>(null);
@@ -1181,7 +1225,10 @@ export function CanvasScene({
         onControlsReady={onControlsReady}
         selectedItem={selectedItem}
         onClearSelection={onClearSelection}
-        onOpenMorePanel={onOpenMorePanel}
+        hoveredEvidenceNodeId={hoveredEvidenceNodeId}
+        onEvidenceHover={onEvidenceHover}
+        onEvidenceLeave={onEvidenceLeave}
+        onEvidenceSelect={onEvidenceSelect}
       />
 
       {/* Background mesh for canvas deselect clicks */}
@@ -1203,6 +1250,9 @@ export function CanvasScene({
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       )}
+
+      {/* Phase 6.0: Post-processing effects (Bloom + SMAA) */}
+      <PostProcessingEffects />
     </Canvas>
   );
 }

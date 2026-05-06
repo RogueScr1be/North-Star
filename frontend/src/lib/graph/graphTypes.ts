@@ -93,6 +93,8 @@ export interface GraphResponse {
  */
 export interface ResolvedEdge {
   id: string;
+  source_id: string;
+  target_id: string;
   source: [number, number, number];
   target: [number, number, number];
   relationship_type: RelationshipType;
