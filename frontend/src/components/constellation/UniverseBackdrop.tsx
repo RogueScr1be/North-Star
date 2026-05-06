@@ -45,17 +45,19 @@ function seededRandom(seed: number): number {
 function generateDistantClusters() {
   const clusterCount = 15;
   const pointsPerCluster = 8;
-  const distanceBase = 1500;
+  const distanceBase = 420; // Tuned from 1500: now in demo-visible range
+  const distanceVariance = 480; // Spread to 420–900 range
 
   const allPoints: number[] = [];
   const allLines: number[] = [];
   const allColors: number[] = [];
 
-  // Three color groups: Violet, Cyan, White
+  // Four vibrant color groups: Cyan, Electric Blue, Magenta, Violet
   const colorGroups = [
-    { color: new THREE.Color(0x8b5cf6), opacityMult: 1.0 }, // Violet
-    { color: new THREE.Color(0x06b6d4), opacityMult: 1.0 }, // Cyan
-    { color: new THREE.Color(0xffffff), opacityMult: 1.5 }, // White (brighter)
+    { color: new THREE.Color(0x00ffff), opacityMult: 1.2 }, // Cyan (electric)
+    { color: new THREE.Color(0x3d82f7), opacityMult: 1.1 }, // Electric blue
+    { color: new THREE.Color(0xd946ef), opacityMult: 1.3 }, // Magenta (vibrant)
+    { color: new THREE.Color(0xa855f7), opacityMult: 1.0 }, // Violet optional
   ];
 
   for (let c = 0; c < clusterCount; c++) {
@@ -65,7 +67,7 @@ function generateDistantClusters() {
     // Cluster center in spherical distribution at distanceBase
     const clusterTheta = seededRandom(baseSeed) * Math.PI * 2;
     const clusterPhi = seededRandom(baseSeed + 1) * Math.PI;
-    const clusterR = distanceBase + seededRandom(baseSeed + 2) * 300; // Small variance in distance
+    const clusterR = distanceBase + seededRandom(baseSeed + 2) * distanceVariance; // Variance in 420–900 range
 
     const centerX = clusterR * Math.sin(clusterPhi) * Math.cos(clusterTheta);
     const centerY = clusterR * Math.sin(clusterPhi) * Math.sin(clusterTheta);
@@ -95,11 +97,12 @@ function generateDistantClusters() {
       allColors.push(colorGroup.color.r, colorGroup.color.g, colorGroup.color.b);
     }
 
-    // Generate some connections between nodes (sparse, ~30% density)
+    // Generate some connections between nodes (sparse, ~20% density — minimal lines)
+    // Corrected: Do NOT increase line density. Keep lines extremely faint background detail.
     for (let i = 0; i < pointsPerCluster; i++) {
       for (let j = i + 1; j < pointsPerCluster; j++) {
         const connectionSeed = baseSeed + i * 100 + j;
-        if (seededRandom(connectionSeed) < 0.3) {
+        if (seededRandom(connectionSeed) < 0.2) { // Reduced from 0.3 to 0.2 for minimal line presence
           const p1 = clusterPoints[i];
           const p2 = clusterPoints[j];
           allLines.push(p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
@@ -119,7 +122,7 @@ function generateDistantClusters() {
 function DistantUniverseGeometry({ enabled = true }: UniverseBackdropProps) {
   const groupRef = useRef<THREE.Group>(null);
 
-  const { pointsGeometry, linesGeometry, pointsColors, linesColors } = useMemo(() => {
+  const { pointsGeometry, linesGeometry } = useMemo(() => {
     const { allPoints, allLines, allColors } = generateDistantClusters();
 
     // Points geometry
@@ -147,8 +150,6 @@ function DistantUniverseGeometry({ enabled = true }: UniverseBackdropProps) {
     return {
       pointsGeometry: ptsGeo,
       linesGeometry: lnsGeo,
-      pointsColors: ptsColors,
-      linesColors: linesColorsArray,
     };
   }, []);
 
@@ -164,25 +165,25 @@ function DistantUniverseGeometry({ enabled = true }: UniverseBackdropProps) {
 
   return (
     <group ref={groupRef}>
-      {/* Distant ghost points */}
+      {/* Distant ghost points — glowing nebula clusters */}
       <points geometry={pointsGeometry}>
         <pointsMaterial
-          size={1.5}
+          size={2.3}
           sizeAttenuation={true}
           vertexColors={true}
           transparent={true}
-          opacity={0.08}
+          opacity={0.32}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
       </points>
 
-      {/* Distant ghost edges */}
+      {/* Distant ghost edges — extremely faint, minimal visual presence */}
       <lineSegments geometry={linesGeometry}>
         <lineBasicMaterial
           vertexColors={true}
           transparent={true}
-          opacity={0.05}
+          opacity={0.032}
           linewidth={0.5}
           depthWrite={false}
           blending={THREE.AdditiveBlending}

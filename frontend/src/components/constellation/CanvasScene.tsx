@@ -463,20 +463,20 @@ function StarField() {
       return Math.abs(rng) / (2 ** 31);
     };
 
-    // Generate 150 stars with dimensional depth distribution
+    // Generate 150 stars with dimensional depth distribution (2× expansion for cinematic depth)
     for (let i = 0; i < 150; i++) {
       const r1 = next();
       const r2 = next();
       const r3 = next();
       const r4 = next();
 
-      // Part 5: Volumetric starfield - 3D scatter with depth layers
+      // Part 5: Volumetric starfield - 3D scatter with depth layers (EXPANDED 2× from original)
       // Distribute stars throughout a volumetric cube around the graph
-      // Z range: -200 to +150 (deep background to far foreground, enveloping the scene)
+      // Z range: -400 to +300 (doubled from -200 to +150 for deeper volumetric feel)
       starList.push({
-        x: (r1 - 0.5) * 240,             // -120 to +120 (wider XY for volumetric feel)
-        y: (r2 - 0.5) * 240,             // -120 to +120 (wider XY for volumetric feel)
-        z: -200 + r3 * 350,              // -200 to +150 (true 3D volumetric distribution, depth layering)
+        x: (r1 - 0.5) * 480,             // -240 to +240 (doubled from ±120 for 2× volumetric expansion)
+        y: (r2 - 0.5) * 480,             // -240 to +240 (doubled from ±120 for 2× volumetric expansion)
+        z: -400 + r3 * 700,              // -400 to +300 (doubled depth range for cinematic envelope effect)
         size: 0.12 + r4 * 0.28,          // 0.12 to 0.40 (maintain variation)
       });
     }
@@ -513,8 +513,8 @@ function StarField() {
       // Clamped blue: 0.5 to 0.7 (was 0.7 to 1.0) to stay below bloom threshold
       const b = 0.5 + Math.random() * 0.2;
       // Depth fade: stars closer to camera (near z=0) are brighter, distant stars are dimmer
-      // Clamp depth calculation: graph occupies roughly -10 to +10 in Z, stars extend -200 to +150
-      const depthFade = 1.0 - Math.abs(stars[i].z) / 200; // Normalize to volumetric range
+      // Clamp depth calculation: graph occupies roughly -10 to +10 in Z, stars extend -400 to +300 (2× expanded)
+      const depthFade = 1.0 - Math.abs(stars[i].z) / 400; // Normalize to 2× expanded volumetric range
       const clampedFade = Math.max(0.2, Math.min(1.0, depthFade)); // Clamp to maintain visibility
       // Phase 6.0: Reduced multipliers to ensure max luminance < 0.8
       // Max luminance: (0.35, 0.392, 0.56) = 0.56 (well below 0.8 threshold)
