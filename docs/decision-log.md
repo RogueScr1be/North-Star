@@ -72,3 +72,54 @@
 **Gate:** All 6 must pass. If any fails, D3 stays experimental forever (acceptable outcome; some users benefit, no forced migration).
 
 ---
+
+## Phase 10.0c: Demo Lock — WebGL Stability + Visual Scaling (2026-05-06)
+
+**Decision:** North Star demo build locked. Three critical adjustments:
+
+### 1. SMAA Disabled by Default
+
+**Original issue:** SMAA post-processing pass caused repeated `glBlitFramebuffer` WebGL warnings after starfield expansion.
+- Error: `GL_INVALID_OPERATION: glBlitFramebuffer: Read and write depth stencil attachments cannot be the same image`
+- Frequency: Multiple warnings per frame, visual console noise during demo
+
+**Fix applied:** Changed SMAA from opt-out (default enabled) to opt-in (default disabled).
+- OLD: `VITE_ENABLE_SMAA !== 'false'` (enabled unless explicitly set to false)
+- NEW: `VITE_ENABLE_SMAA === 'true'` (only enabled if explicitly set to true)
+- Result: Demo console now clean; bloom remains enabled (no warnings)
+
+**Why:** Disabling SMAA is a demo-safe toggle. Root cause (depth buffer contention) could require complex render-target refactoring; feature toggle is simpler and fully reversible. SMAA is optional post-processing; demo visual quality is preserved with bloom alone.
+
+### 2. Billboard Scale Proportional to Active Constellation
+
+**Original regression:** After starfield expanded to ±900 X/Y, -1100 to +1100 Z, billboard appeared disproportionately large.
+- Scale was hardcoded to 0.01, independent of scene bounds
+- With expanded backdrop context (5× volume increase), UI element dominated canvas
+
+**Fix applied:** Reduced scale from 0.01 to 0.006 (~40% reduction).
+- BillboardedPanel.tsx line 128: `<Html ... scale={0.006} ... />`
+- Rationale: Billboard position still anchors to selected node via `getRenderedPosition()`, but scale is now tuned to feel proportional after expanded backdrop
+- Result: Billboard readable but not oversized; proportional to active graph
+
+**Why:** Visual hierarchy must be preserved. Scene expansion requires UI scale adjustment to maintain perceptual balance.
+
+### 3. Universe Backdrop Final State
+
+**Starfield:** 300 deterministic points spanning ±900 X/Y, -1100 to +1100 Z, 150-unit thickness
+**Ghost clusters:** 15 clusters at 420–900 unit distance with 8-120 nodes each, 20% edge connection density
+**Rendering:** Points (opacity 0.32, size 2.3), edges (opacity 0.032), AdditiveBlending for glow effect
+**Animation:** Slow Y/Z rotation (0.0002, 0.0001 rad/frame) for parallax drift
+**Non-interactive:** No picking, no selection, pure visual scenery
+
+**Demo purpose:** Suggest "larger universe of builders coming" without product complexity or interaction confusion.
+
+### Durable Guardrails for Future Phases
+
+1. **Demo scenery must not affect UI/interaction scale.** Expand backdrop independently; adjust UI elements if context changes.
+2. **Post-processing effects require kill switches.** SMAA now opt-in by default to prevent WebGL warnings in production builds.
+3. **Do not continue feature work after demo lock without rollback checkpoint.** Demo lock is a git tag. Branch for new work separately.
+4. **Static/code QA ≠ browser QA.** Always verify interactivity, FPS, and console cleanliness in the actual runtime environment.
+
+**Commit:** Lock North Star demo build (this session)
+
+---

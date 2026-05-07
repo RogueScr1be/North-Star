@@ -48,7 +48,7 @@ export function PostProcessingEffects() {
   const BLOOM_ENABLED =
     import.meta.env.VITE_ENABLE_BLOOM !== 'false';
   const SMAA_ENABLED =
-    import.meta.env.VITE_ENABLE_SMAA !== 'false';
+    import.meta.env.VITE_ENABLE_SMAA === 'true';
   const DOF_ENABLED =
     import.meta.env.VITE_ENABLE_DOF === 'true';
 

@@ -446,9 +446,10 @@ function ProjectGlowSprites({
 }
 
 /**
- * StarField: Background depth with sparse stars (Phase 7.1)
- * Creates subtle atmospheric depth without visual clutter
- * 150 deterministic points at far Z (-100 to -80), blue-biased colors, 0.35 opacity
+ * StarField: Background depth wrapping active constellation AND distant universe backdrop (Phase 10.0B FINAL)
+ * Creates atmospheric depth envelope encompassing both near and far scenery
+ * 300 deterministic points distributed throughout ±900 X/Y and -1100 to +1100 Z
+ * Ensures ghost clusters at 420–900 units remain embedded in starfield during camera orbit
  */
 function StarField() {
   // Generate deterministic star positions (same every load for consistency)
@@ -463,21 +464,24 @@ function StarField() {
       return Math.abs(rng) / (2 ** 31);
     };
 
-    // Generate 150 stars with dimensional depth distribution (2× expansion for cinematic depth)
-    for (let i = 0; i < 150; i++) {
+    // Generate 300 stars (increased from 150 to maintain density over expanded volume)
+    // PHASE 10.0B FINAL: Starfield expanded to encompass Universe Backdrop ghost clusters at 420–900 units
+    for (let i = 0; i < 300; i++) {
       const r1 = next();
       const r2 = next();
       const r3 = next();
       const r4 = next();
 
-      // Part 5: Volumetric starfield - 3D scatter with depth layers (EXPANDED 2× from original)
-      // Distribute stars throughout a volumetric cube around the graph
-      // Z range: -400 to +300 (doubled from -200 to +150 for deeper volumetric feel)
+      // PHASE 10.0B FINAL: Starfield encompasses both active constellation AND distant universe backdrop
+      // Expanded bounds to wrap ghost clusters (420–900 units away)
+      // X/Y: ±900 (from ±240, 3.75× expansion)
+      // Z: -1100 to +1100 (from -400 to +300, full volumetric wrap)
+      // This ensures no empty void around distant clusters during orbital zoom-back
       starList.push({
-        x: (r1 - 0.5) * 480,             // -240 to +240 (doubled from ±120 for 2× volumetric expansion)
-        y: (r2 - 0.5) * 480,             // -240 to +240 (doubled from ±120 for 2× volumetric expansion)
-        z: -400 + r3 * 700,              // -400 to +300 (doubled depth range for cinematic envelope effect)
-        size: 0.12 + r4 * 0.28,          // 0.12 to 0.40 (maintain variation)
+        x: (r1 - 0.5) * 1800,            // ±900 (expanded from ±240 to wrap backdrop)
+        y: (r2 - 0.5) * 1800,            // ±900 (expanded from ±240 to wrap backdrop)
+        z: -1100 + r3 * 2200,            // -1100 to +1100 (expanded to fully encompass backdrop)
+        size: 0.08 + r4 * 0.24,          // 0.08 to 0.32 (slightly smaller for distant depth feel)
       });
     }
     return starList;
@@ -504,7 +508,7 @@ function StarField() {
   }, [stars]);
 
   // Create color array with blue-biased colors and depth-based opacity variation
-  // Part 5: Updated depth calculation for volumetric starfield (-200 to +150 Z range)
+  // PHASE 10.0B FINAL: Recalibrated depth calculation for expanded starfield (-1100 to +1100 Z range)
   // Phase 6.0: CRITICAL: Clamp star luminance <0.8 to prevent bloom washout
   // Stars at max will be (0.49, 0.56, 0.7) = 0.58 max luminance, well below 0.8 bloom threshold
   const colors = useMemo(() => {
@@ -513,8 +517,8 @@ function StarField() {
       // Clamped blue: 0.5 to 0.7 (was 0.7 to 1.0) to stay below bloom threshold
       const b = 0.5 + Math.random() * 0.2;
       // Depth fade: stars closer to camera (near z=0) are brighter, distant stars are dimmer
-      // Clamp depth calculation: graph occupies roughly -10 to +10 in Z, stars extend -400 to +300 (2× expanded)
-      const depthFade = 1.0 - Math.abs(stars[i].z) / 400; // Normalize to 2× expanded volumetric range
+      // Recalibrated for new range: graph occupies roughly -10 to +10 in Z, stars extend -1100 to +1100
+      const depthFade = 1.0 - Math.abs(stars[i].z) / 1100; // Normalize to expanded volumetric range (±1100)
       const clampedFade = Math.max(0.2, Math.min(1.0, depthFade)); // Clamp to maintain visibility
       // Phase 6.0: Reduced multipliers to ensure max luminance < 0.8
       // Max luminance: (0.35, 0.392, 0.56) = 0.56 (well below 0.8 threshold)

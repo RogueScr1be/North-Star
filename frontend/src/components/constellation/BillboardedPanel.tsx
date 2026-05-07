@@ -125,7 +125,7 @@ function BillboardPanelContent({
     >
       <Html
         position={[2.0, 1.5, 0.5]}
-        scale={0.01}
+        scale={0.006}
         occlude="blending"
         distanceFactor={1}
       >
@@ -243,6 +243,7 @@ function BillboardPanelContent({
                   className="billboarded-panel-back"
                   onClick={(e) => {
                     e.stopPropagation();
+                    onEvidenceLeave?.(); // Path 6: Clear hover state when exiting Evidence Mode
                     handleExpandEvidence();
                   }}
                   aria-label="Back to compact view"

@@ -85,3 +85,63 @@ Never rely on Vercel build cache to paper over missing committed files. Cache is
 All four checks must pass. Single missing link means analytics is falling back to console.
 
 ---
+
+## Phase 10.0c: WebGL glBlitFramebuffer Warning Spam — Post-Processing Kill Switches (2026-05-06)
+
+**Pattern:** Repeated WebGL warnings flooded browser console after expanding starfield to ±900 X/Y volume. Warning: `GL_INVALID_OPERATION: glBlitFramebuffer: Read and write depth stencil attachments cannot be the same image`. Frequency: ~3 warnings per frame.
+
+**Root Cause:** SMAA post-processing effect attempted to reuse depth buffer for both read and write operations within the EffectComposer render pass. This is not allowed by WebGL spec. The issue was latent (present before expansion) but became visible after viewport bounds expanded, triggering the depth buffer contention more frequently.
+
+**Fix Applied:** Disabled SMAA by default via environment flag inversion.
+- OLD logic: `VITE_ENABLE_SMAA !== 'false'` (opt-out: enabled unless explicitly disabled)
+- NEW logic: `VITE_ENABLE_SMAA === 'true'` (opt-in: only enabled if explicitly set to true)
+- Result: Demo console now clean; bloom remains enabled (no warnings)
+
+**Guardrail for Future Phases:**
+
+1. **Post-processing effects require kill switches.** Bloom, DOF, SMAA all gated by environment flags. If any effect causes WebGL warnings, disable by default rather than attempt render-target surgery.
+
+2. **WebGL warnings indicate depth buffer contention or pass ordering.** When you see `glBlitFramebuffer` or `Stencil` warnings, stop adding more rendering passes. Instead, review existing pass order or disable the offending pass.
+
+3. **Demo builds are feature-flag vehicles.** Use environment variables to quickly disable problematic features without code changes. For demo lock, this is faster and safer than attempting architectural fixes.
+
+4. **Test console health in production build output.** Always verify browser console is clean (zero warnings/errors) when testing demo. WebGL warnings are invisible until you open DevTools, but they degrade perceived demo quality.
+
+---
+
+## Phase 10.0b: Billboard Scale Regression — Scene Expansion Context (2026-05-06)
+
+**Pattern:** After expanding starfield scenery from initial bounds (~±50 units) to ±900 X/Y, -1100 to +1100 Z, billboard UI element appeared disproportionately large. Scale was hardcoded (0.01) and independent of scene context, making it feel oversized relative to the expanded backdrop.
+
+**Root Cause:** Three.js Drei `<Html>` component scale is independent of scene bounds. When viewport context expands 10×, UI element does not auto-scale. Billboard anchor position (from `getRenderedPosition`) updated correctly, but visual scale remained constant, creating visual imbalance.
+
+**Fix Applied:** Reduced scale from 0.01 to 0.006 (~40% reduction, proportional to viewport expansion ratio).
+- BillboardedPanel.tsx line 128: `<Html ... scale={0.006} ... />`
+- Tuned via visual inspection to match viewport proportions after scenery expansion
+- Billboard remains readable and proportional to active constellation
+
+**Guardrail for Future Phases:**
+
+1. **DOM-in-3D-space elements (Drei <Html>) scale independently of scene bounds.** When you expand the 3D viewport context, verify that UI elements scaling feels proportional. Do not assume scale will auto-adjust.
+
+2. **Demo scenery must not affect interaction/UI scale.** Visual-only backdrop (starfield, ghost clusters) should be strictly cosmetic. If adding scenery causes UI elements to feel disproportionate, adjust the UI scale via HTML scale or camera framing, not the scenery itself.
+
+3. **Test proportionality with browser QA.** Static code inspection cannot catch visual scaling regressions. Always select a node and verify billboard scale "feels right" after expanding viewport context. Use subjective judgment: is the panel readable? Does it feel proportional to the selected node?
+
+4. **Billboard is independent of selection semantics.** Billboard scale does not depend on node type, gravity score, or project affiliation. Scale is purely visual; adjust it uniformly if viewport context changes.
+
+---
+
+## General Demo Lock Guardrails
+
+**Never blur demo lock → feature work.** Demo lock is a moment in time (git tag). Any new feature work branches separately. Prevent scope creep by having explicit decision points (decision-log.md) for each feature.
+
+**Static build success ≠ demo ready.** A clean TypeScript build and successful `npm run build` does not guarantee the demo is visually correct, performant, or console-clean. Always verify in browser:
+- Visual proportions (billboard scale, starfield visibility, active graph dominance)
+- Console cleanliness (no WebGL warnings, no TypeScript runtime errors)
+- Interactive smoothness (FPS stable during orbit/zoom/select)
+- State cleanup (reset works, URL syncs, selection persists)
+
+**Do not continue feature work after demo lock without checkpoints.** The next workstream is presentation + deck. If new features are needed after demo lock, create rollback checkpoints in git (tags) to ensure demo stability is preserved.
+
+---

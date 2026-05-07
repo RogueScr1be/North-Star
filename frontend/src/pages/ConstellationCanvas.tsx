@@ -169,13 +169,27 @@ export const ConstellationCanvas: React.FC = () => {
     canonicalFramingRef.current = capturedFraming;
   }, [controlsReady]); // FIXED: Only depends on controlsReady, not canonicalFraming
 
+  // Phase 10.2: Canonical evidence hover cleanup (call on all context exits)
+  // Ensures stale evidence pulse state doesn't persist after:
+  // - Billboard close (X button)
+  // - Escape key press
+  // - Reset frame
+  // - New node/project selection
+  // - Evidence card selection
+  // - Evidence Mode exit
+  const clearEvidenceHover = React.useCallback(() => {
+    setHoveredEvidenceNodeId(null);
+  }, []);
+
   // Phase 3 (Current Session): Explicit billboard close handler
   // Closes side panel and clears selection (which removes billboard by removing selectedItem)
+  // Phase 10.2: CLEANUP PATH 1 - Clear evidence hover state on billboard close
   const handleCloseBillboard = React.useCallback(() => {
     console.log('[INSTRUMENT] Billboard close triggered');
+    clearEvidenceHover(); // Path 1: Clear hover state when closing billboard
     setSidePanelOpen(false);
     clearSelection();
-  }, [clearSelection]);
+  }, [clearEvidenceHover, clearSelection]);
 
   // Phase D: Cancel active animation on gesture (user pan/zoom/click)
   const handleCancelAnimation = React.useCallback(() => {
@@ -259,6 +273,7 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Phase D: Reset to captured canonical framing (or fallback to graph bounds)
   // ROBUST: Uses canonical if available, otherwise computes from graph bounds
+  // Phase 10.2: CLEANUP PATH 2 - Evidence hover cleared via handleCloseBillboard
   const handleResetFrame = React.useCallback(() => {
     // Require camera and controls to be ready
     if (!cameraRef.current || !cameraControlsRef.current) {
@@ -274,7 +289,7 @@ export const ConstellationCanvas: React.FC = () => {
       }
     }
 
-    // Close billboard when resetting frame
+    // Close billboard when resetting frame (also clears evidence hover via handleCloseBillboard)
     handleCloseBillboard();
 
     // Cancel any active animation
@@ -526,25 +541,29 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Phase 3 (Current Session): Callback wrappers for node/project selection
   // CRITICAL: These explicitly control side panel state and selection
+  // Phase 10.2: CLEANUP PATHS 3, 4, 5 - Clear evidence hover on new selection
   const handleSelectNode = React.useCallback((node: any) => {
     console.log('[INSTRUMENT] Node selected:', node.id);
+    clearEvidenceHover(); // Path 3: Clear hover when selecting new node
     selectNode(node);
     setSidePanelOpen(false);
-  }, [selectNode]);
+  }, [clearEvidenceHover, selectNode]);
 
   const handleEvidenceSelect = React.useCallback((nodeId: string) => {
     // Find the node from the node ID
     const node = data?.nodes?.find(n => n.id === nodeId);
     if (node) {
+      clearEvidenceHover(); // Path 5: Clear hover when selecting evidence card target
       handleSelectNode(node);
     }
-  }, [data?.nodes, handleSelectNode]);
+  }, [data?.nodes, handleSelectNode, clearEvidenceHover]);
 
   const handleSelectProject = React.useCallback((project: any) => {
     console.log('[INSTRUMENT] Project selected:', project.id);
+    clearEvidenceHover(); // Path 4: Clear hover when selecting new project
     selectProject(project);
     setSidePanelOpen(false);
-  }, [selectProject]);
+  }, [clearEvidenceHover, selectProject]);
 
   // Handle person node selection (render-layer synthetic node at origin)
   const handlePersonClick = React.useCallback(() => {
@@ -965,6 +984,9 @@ export const ConstellationCanvas: React.FC = () => {
         onEvidenceHover={handleEvidenceHover}
         onEvidenceLeave={handleEvidenceLeave}
         onEvidenceSelect={handleEvidenceSelect}
+        setProjectCluster={setProjectCluster}
+        toggleNodeType={handleToggleNodeType}
+        clearAllFilters={clearAllFilters}
       />
 
       {/* Phase 3 (Current Session): Side panel only renders when explicitly opened via "More" button */}

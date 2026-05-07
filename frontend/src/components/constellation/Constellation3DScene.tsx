@@ -53,6 +53,9 @@ interface Constellation3DSceneProps {
   highlightSearchResultId?: string | null;
   billboardOpen?: boolean;
   onCloseBillboard?: () => void;
+  setProjectCluster?: (projectId: string) => void;
+  toggleNodeType?: (type: string) => void;
+  clearAllFilters?: () => void;
 }
 
 /**
@@ -1221,6 +1224,7 @@ export function Constellation3DScene({
   d3Positions,
   onCancelAnimation,
   isAnimatingRef,
+  // Phase 6.4: clearAllFilters, setProjectCluster, toggleNodeType reserved for future use, intentionally unused
 }: Constellation3DSceneProps) {
   // Disable raycasting on background plane to allow clicks to pass through to nodes/projects
   const bgPlane2Ref = useRef<THREE.Mesh>(null);
@@ -1266,41 +1270,43 @@ export function Constellation3DScene({
   }, [onCancelAnimation, isAnimatingRef]);
 
   return (
-    <Canvas
-      orthographic
-      frameloop="always"
-      gl={{
-        antialias: true,
-        stencil: false,
-        depth: true,
-      }}
-      style={{ width: '100%', height: '100%', background: '#000000' }}
-    >
-      <SceneContent
-        graph={graph}
-        cameraParams={cameraParams}
-        onUnresolvedEdgesChange={onUnresolvedEdgesChange}
-        onNodeClick={onNodeClick}
-        onProjectClick={onProjectClick}
-        highlightState={highlightState}
-        semanticVisibility={semanticVisibility}
-        selectedNodeId={selectedNodeId}
-        selectedProjectId={selectedProjectId}
-        citedState={citedState}
-        layoutEngine={layoutEngine}
-        d3Positions={d3Positions}
-        cameraRef={cameraRef}
-        controlsRef={controlsRef}
-        onCameraReady={onCameraReady}
-        onControlsReady={onControlsReady}
-      />
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <Canvas
+        orthographic
+        frameloop="always"
+        gl={{
+          antialias: true,
+          stencil: false,
+          depth: true,
+        }}
+        style={{ width: '100%', height: '100%', background: '#000000' }}
+      >
+        <SceneContent
+          graph={graph}
+          cameraParams={cameraParams}
+          onUnresolvedEdgesChange={onUnresolvedEdgesChange}
+          onNodeClick={onNodeClick}
+          onProjectClick={onProjectClick}
+          highlightState={highlightState}
+          semanticVisibility={semanticVisibility}
+          selectedNodeId={selectedNodeId}
+          selectedProjectId={selectedProjectId}
+          citedState={citedState}
+          layoutEngine={layoutEngine}
+          d3Positions={d3Positions}
+          cameraRef={cameraRef}
+          controlsRef={controlsRef}
+          onCameraReady={onCameraReady}
+          onControlsReady={onControlsReady}
+        />
 
-      {onCanvasClick && (
-        <mesh ref={bgPlane2Ref} position={[0, 0, -100]} scale={[10000, 10000, 1]} onPointerUp={onCanvasClick}>
-          <planeGeometry />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-      )}
-    </Canvas>
+        {onCanvasClick && (
+          <mesh ref={bgPlane2Ref} position={[0, 0, -100]} scale={[10000, 10000, 1]} onPointerUp={onCanvasClick}>
+            <planeGeometry />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        )}
+      </Canvas>
+    </div>
   );
 }
