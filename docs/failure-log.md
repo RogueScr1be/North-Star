@@ -1,5 +1,43 @@
 # Failure Log & Guardrails
 
+## Phase 10.0c+: Vercel Install Strategy Exposed Dependency Conflict (2026-05-07)
+
+**Pattern:** Vercel deployment failed with `npm ERESOLVE` unable to resolve peer dependency tree, while local builds succeeded. Root cause: Local development environment had cached node_modules; Vercel performs clean install without cache.
+
+**Failure Sequence:**
+1. PostProcessingEffects.tsx imports `@react-three/postprocessing`
+2. Local build: `@react-three/postprocessing` present in node_modules (cached from prior work)
+3. Vercel build: Clean install executes `npm install` without cache
+4. Vercel npm resolution: `postprocessing@6.39.1` peer-requires `three@>= 0.168.0`
+5. Package lockfile locked `three@0.160.1` (required by other deps)
+6. Conflict detected → ERESOLVE → build failure
+
+**Root Cause:** Previous install command deleted package-lock.json, forcing fresh dependency resolution. Clean machines cannot resolve floating dependency trees that local cached machines gloss over.
+
+**Guardrail 1: Commit Lockfiles**
+- Always commit package-lock.json and frontend/package-lock.json
+- Never delete lockfiles in Vercel install commands
+- Do NOT use `rm -f package-lock.json && npm install`
+- Use `npm ci` (clean install from lockfile) for stable CI deployments
+
+**Guardrail 2: Test on Clean CI**
+- Local build success ≠ CI success if dependency is floating
+- Before shipping dependency changes, run clean install locally: `rm -rf node_modules && npm install`
+- If clean install fails locally, Vercel will also fail
+- Local caching masks peer dependency incompatibilities
+
+**Guardrail 3: Peer Dependencies Require Verification**
+- Packages with peer dependencies are version-sensitive
+- Floating specs like `@react-three/postprocessing@^2.19.1` can resolve to incompatible versions in CI
+- Solution: Pin peer-dependent packages to exact versions OR remove them if not essential
+- Bloom post-processing was visual enhancement, not essential → removed
+
+**Fix Applied:** Removed `@react-three/postprocessing` and `postprocessing` from dependencies entirely. Converted component to no-op to preserve import contract.
+
+**Commit fixing this pattern:** 67e303b (Hotfix: remove postprocessing dependency from demo build)
+
+---
+
 ## Phase 6.1: Edge Pulse Animation — Browser Verification Required (2026-05-03)
 
 **Pattern:** Edge pulse animation was claimed implemented but missing in runtime. requestAnimationFrame loop had closure bug: `frameId` was referenced before assignment, breaking animation chain.

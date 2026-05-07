@@ -1,5 +1,40 @@
 # Decision Log
 
+## Phase 10.0c+: Post-Processing Removed From Demo — Deployment Stability Priority (2026-05-07)
+
+**Decision:** Remove `@react-three/postprocessing` and `postprocessing` dependencies from demo build. Convert PostProcessingEffects.tsx to a no-op component.
+
+**Why:** Vercel deployment encountered unresolvable peer dependency conflict:
+- `postprocessing@6.39.1` requires `three@>= 0.168.0 < 0.185.0`
+- Project locked at `three@0.160.1` (required by other stack dependencies)
+- Local development masked issue via cached node_modules
+- Vercel's clean install exposed conflict, causing ERESOLVE failure
+- Attempted fixes (`--legacy-peer-deps`, pinned versions) added fragility
+
+**Visual Trade-off Acceptable:** Demo already contains:
+- Node type color encoding (Phase 5.3)
+- Universe backdrop (Phase 10.0b)
+- Starfield (Phase 5.4)
+- Neon evidence bridge (Phase 3.5)
+- Node glow via emissive materials
+
+Bloom post-processing is visual enhancement, not essential. Clean deploy is essential.
+
+**Implementation:**
+- Converted PostProcessingEffects.tsx to null-returning component (preserves import contract)
+- Removed `@react-three/postprocessing` and `postprocessing` from frontend/package.json
+- Ran clean npm install locally (no ERESOLVE)
+- Verified build succeeds: TypeScript 0 errors, 139 modules, 321.53 kB JS (68 kB smaller)
+- Commit: 67e303b
+
+**Guardrail for Future:** If post-processing is re-attempted after demo:
+1. Upgrade `three` to compatible version OR downgrade `postprocessing` to match locked three version
+2. Pin all post-processing versions in package.json (no floating ^/~ specs)
+3. Test on clean Vercel build BEFORE committing (not just local)
+4. Render target compatibility must be verified in WebGL context (not just build-time)
+
+---
+
 ## Phase 6.1: Post-Processing Effects — Conservative Tuning with Environment Toggles (2026-05-03)
 
 **Decision:** Bloom, SMAA, and DOF effects controlled by environment variables. Bloom parameters tuned conservatively. SMAA used instead of FXAA. DOF disabled by default.
