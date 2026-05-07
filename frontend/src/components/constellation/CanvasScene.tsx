@@ -4,10 +4,9 @@
  * Phase 2.2: Read-only rendering with Points geometries
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
-import { OverviewScene, ViewModeToggle } from './SemanticOverviewMode';
 import * as THREE from 'three';
 import { RenderableGraph } from '../../lib/graph/graphTransforms';
 import { computeGraphBounds, computeCameraParams, CameraParams } from '../../lib/graph/graphBounds';
@@ -54,9 +53,6 @@ interface CanvasSceneProps {
   onEvidenceHover?: (nodeId: string) => void; // Phase 5.4: Evidence card hover callback
   onEvidenceLeave?: () => void; // Phase 5.4: Evidence card leave callback
   onEvidenceSelect?: (nodeId: string) => void; // Phase 6.1: Evidence card selection callback
-  setProjectCluster?: (projectId: string) => void; // Phase 6.4: Project cluster filter handler
-  toggleNodeType?: (type: string) => void; // Phase 6.4: Node type toggle handler
-  clearAllFilters?: () => void; // Phase 6.4: Clear all filters handler
 }
 
 /**
@@ -1156,9 +1152,6 @@ export function CanvasScene({
   onEvidenceHover,        // Phase 5.4: Evidence card hover callback
   onEvidenceLeave,        // Phase 5.4: Evidence card leave callback
   onEvidenceSelect,       // Phase 5.4: Evidence card selection callback
-  setProjectCluster,      // Phase 6.4: Project cluster filter handler
-  toggleNodeType,         // Phase 6.4: Node type toggle handler
-  // Phase 6.4: clearAllFilters reserved for future use, intentionally unused
 }: CanvasSceneProps) {
   // Disable raycasting on background plane to allow clicks to pass through to nodes/projects
   const bgPlane2Ref = useRef<THREE.Mesh>(null);
@@ -1168,10 +1161,6 @@ export function CanvasScene({
       bgPlane2Ref.current.raycast = () => {};
     }
   }, []);
-
-  // Phase 6.4: Semantic Overview Mode feature flag and view state
-  const SEMANTIC_OVERVIEW_ENABLED = import.meta.env.VITE_ENABLE_SEMANTIC_OVERVIEW === 'true';
-  const [viewMode, setViewMode] = useState<'detailed' | 'overview'>('detailed');
 
   // Compute bounds and camera parameters once from graph
   const { cameraParams } = useMemo(() => {
@@ -1227,53 +1216,29 @@ export function CanvasScene({
         }}
         style={{ width: '100%', height: '100%', background: '#000000' }}
       >
-        {viewMode === 'detailed' ? (
-          <SceneContent
-            graph={graph}
-            cameraParams={cameraParams}
-            onUnresolvedEdgesChange={onUnresolvedEdgesChange}
-            onNodeClick={onNodeClick}
-            onProjectClick={onProjectClick}
-            onPersonClick={onPersonClick}
-            highlightState={highlightState}
-            semanticVisibility={semanticVisibility}
-            selectedNodeId={selectedNodeId}
-            selectedProjectId={selectedProjectId}
-            citedState={citedState}
-            cameraRef={cameraRef}
-            controlsRef={controlsRef}
-            onCameraReady={onCameraReady}
-            onControlsReady={onControlsReady}
-            selectedItem={selectedItem}
-            onClearSelection={onClearSelection}
-            hoveredEvidenceNodeId={hoveredEvidenceNodeId}
-            onEvidenceHover={onEvidenceHover}
-            onEvidenceLeave={onEvidenceLeave}
-            onEvidenceSelect={onEvidenceSelect}
-          />
-        ) : (
-          <OverviewScene
-            graph={graph}
-            visibleNodeIds={semanticVisibility?.visibleNodeIds}
-            semanticVisibility={semanticVisibility}
-            onProjectClick={(projectId) => {
-              const project = graph.projects.find((p) => p.id === projectId);
-              if (project && onProjectClick) {
-                onProjectClick(project);
-              }
-              if (setProjectCluster) {
-                setProjectCluster(projectId);
-              }
-              setViewMode('detailed');
-            }}
-            onTypeClick={(type) => {
-              if (toggleNodeType) {
-                toggleNodeType(type);
-              }
-              setViewMode('detailed');
-            }}
-          />
-        )}
+        <SceneContent
+          graph={graph}
+          cameraParams={cameraParams}
+          onUnresolvedEdgesChange={onUnresolvedEdgesChange}
+          onNodeClick={onNodeClick}
+          onProjectClick={onProjectClick}
+          onPersonClick={onPersonClick}
+          highlightState={highlightState}
+          semanticVisibility={semanticVisibility}
+          selectedNodeId={selectedNodeId}
+          selectedProjectId={selectedProjectId}
+          citedState={citedState}
+          cameraRef={cameraRef}
+          controlsRef={controlsRef}
+          onCameraReady={onCameraReady}
+          onControlsReady={onControlsReady}
+          selectedItem={selectedItem}
+          onClearSelection={onClearSelection}
+          hoveredEvidenceNodeId={hoveredEvidenceNodeId}
+          onEvidenceHover={onEvidenceHover}
+          onEvidenceLeave={onEvidenceLeave}
+          onEvidenceSelect={onEvidenceSelect}
+        />
 
         {/* Background mesh for canvas deselect clicks */}
         {onCanvasClick && (
@@ -1299,10 +1264,6 @@ export function CanvasScene({
         <PostProcessingEffects />
       </Canvas>
 
-      {/* Phase 6.4: View mode toggle button (gated by feature flag) */}
-      {SEMANTIC_OVERVIEW_ENABLED && (
-        <ViewModeToggle currentMode={viewMode} onToggle={setViewMode} />
-      )}
     </div>
   );
 }

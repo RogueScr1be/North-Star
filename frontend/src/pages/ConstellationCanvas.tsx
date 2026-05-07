@@ -984,9 +984,6 @@ export const ConstellationCanvas: React.FC = () => {
         onEvidenceHover={handleEvidenceHover}
         onEvidenceLeave={handleEvidenceLeave}
         onEvidenceSelect={handleEvidenceSelect}
-        setProjectCluster={setProjectCluster}
-        toggleNodeType={handleToggleNodeType}
-        clearAllFilters={clearAllFilters}
       />
 
       {/* Phase 3 (Current Session): Side panel only renders when explicitly opened via "More" button */}
