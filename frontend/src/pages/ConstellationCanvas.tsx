@@ -906,14 +906,17 @@ export const ConstellationCanvas: React.FC = () => {
   // Render canvas
   return (
     <div className="constellation-container">
-      <SearchUI
-        ref={searchUIRef}
-        nodes={data?.nodes ?? []}
-        projects={data?.projects ?? []}
-        onNodeSelect={selectNode}
-        onProjectSelect={selectProject}
-        demoMode={demoMode}
-      />
+      {/* Phase 10.0c: Top search UI gated behind feature flag (disabled for demo) */}
+      {import.meta.env.VITE_ENABLE_TOP_SEARCH === 'true' && (
+        <SearchUI
+          ref={searchUIRef}
+          nodes={data?.nodes ?? []}
+          projects={data?.projects ?? []}
+          onNodeSelect={selectNode}
+          onProjectSelect={selectProject}
+          demoMode={demoMode}
+        />
+      )}
 
       {/* Phase 8.0: Layout toggle hidden in demo mode (D3 remains experimental, never default) */}
       {false && (

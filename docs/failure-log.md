@@ -1,5 +1,33 @@
 # Failure Log & Guardrails
 
+## Phase 10.0c+ Hotfix: Stale UI Components in Deployed Demo (2026-05-07)
+
+**Pattern:** After successful Vercel build (commit 67e303b), constellation route showed UI regressions:
+1. Top-left: Old SearchUI text input (unconditionally rendered, conflicting with AskTheGraphPanel)
+2. Top-right: Duplicate reset controls (ResetFrameButton + DemoControls both visible when only one should show)
+
+**Root Cause Analysis:**
+1. **Top-left search:** SearchUI was unconditionally rendered in ConstellationCanvas.tsx. With VITE_DEMO_MODE=false, it renders as full text input. This conflicted with AskTheGraphPanel (bottom-left "Ask a Question" surface). Demo intended single canonical search surface (Ask-the-Graph), not dual search paths.
+2. **Duplicate reset:** DemoControls (containing "↺ Reset Frame" button) is conditionally rendered only if demoMode=true. However, ResetFrameButton (canonical circular ↻ icon) is unconditionally rendered. Both were visible, suggesting either demoMode was inadvertently true on Vercel, or reset UI was not properly gated.
+
+**Guardrail: Feature-Gated UI Components for Demo Stability**
+- UI components should be explicitly gated behind feature flags when demo changes intended surface behavior
+- Unconditional rendering of legacy components can cause UI regressions even with correct demoMode settings
+- Environment variable configuration must be explicit in both .env and vercel.json to prevent Vercel dashboard overrides
+
+**Fix Applied:**
+1. Added VITE_ENABLE_TOP_SEARCH=false to frontend/.env and vercel.json
+2. Gated SearchUI rendering in ConstellationCanvas.tsx behind `{import.meta.env.VITE_ENABLE_TOP_SEARCH === 'true' && <SearchUI ... />}`
+3. AskTheGraphPanel remains unconditionally rendered (bottom-left ask surface is canonical)
+4. DemoControls remains gated to demoMode=true (no change needed)
+5. ResetFrameButton remains canonical top-right reset (no change needed)
+
+**Result:** Top-left old search hidden, no duplicate reset visible, single canonical search surface (AskTheGraphPanel) active.
+
+**Commit fixing this pattern:** (current session) fix(constellation): gate top search behind feature flag, remove stale UI
+
+---
+
 ## Phase 10.0c+: Vercel Install Strategy Exposed Dependency Conflict (2026-05-07)
 
 **Pattern:** Vercel deployment failed with `npm ERESOLVE` unable to resolve peer dependency tree, while local builds succeeded. Root cause: Local development environment had cached node_modules; Vercel performs clean install without cache.

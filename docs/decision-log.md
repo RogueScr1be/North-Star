@@ -1,5 +1,33 @@
 # Decision Log
 
+## Phase 10.0c+ Hotfix: Top Search UI Gated for Demo Stability (2026-05-07)
+
+**Decision:** Gate top-left SearchUI component behind disabled feature flag VITE_ENABLE_TOP_SEARCH=false. AskTheGraphPanel remains canonical search surface (bottom-left).
+
+**Why:** After Vercel deployment, constellation route showed UI regression with stale top-left text search input. SearchUI was unconditionally rendered, conflicting with AskTheGraphPanel as the intended canonical search. Demo intended single search surface (Ask-the-Graph), not dual paths.
+
+**Feature Flag Logic:**
+- VITE_ENABLE_TOP_SEARCH=false (default): Top-left SearchUI hidden, AskTheGraphPanel is only search surface
+- VITE_ENABLE_TOP_SEARCH=true: Top-left SearchUI visible (for future use or developer mode)
+- Explicitly set in both frontend/.env and vercel.json to prevent environment variable override via Vercel dashboard
+
+**Implementation:**
+- Added VITE_ENABLE_TOP_SEARCH=false to frontend/.env (line 16-19)
+- Added VITE_ENABLE_TOP_SEARCH=false to vercel.json (to ensure explicit environment configuration)
+- Gated SearchUI rendering in ConstellationCanvas.tsx (lines 909-917) behind conditional check
+- AskTheGraphPanel remains unconditionally rendered (canonical ask surface preserved)
+- DemoControls remains gated to demoMode=true (no change needed)
+- ResetFrameButton remains canonical (no change needed)
+
+**Verification:**
+- Build succeeds: TypeScript 0 errors, Vite 740ms, 321.40 kB JS
+- No regressions to Phases 2.3–10.0b (all features intact)
+- UI regression resolved: only AskTheGraphPanel visible as search surface, single reset button visible
+
+**Guardrail for Future:** Feature-gate all optional/legacy UI components explicitly to prevent regressions after demo lock. Unconditional rendering of components can cause issues even when feature flags are correctly set elsewhere.
+
+---
+
 ## Phase 10.0c+: Post-Processing Removed From Demo — Deployment Stability Priority (2026-05-07)
 
 **Decision:** Remove `@react-three/postprocessing` and `postprocessing` dependencies from demo build. Convert PostProcessingEffects.tsx to a no-op component.

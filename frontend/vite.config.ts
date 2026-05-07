@@ -12,8 +12,23 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'd3-force',
+      'three',
+      '@react-three/fiber',
+      '@react-three/drei',
+    ],
+    exclude: ['three-stdlib', '@react-three/postprocessing', 'postprocessing'],
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      external: ['three', '@react-three/fiber', '@react-three/drei'],
+    },
   },
 })
