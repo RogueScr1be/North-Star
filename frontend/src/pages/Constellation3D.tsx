@@ -269,7 +269,6 @@ export const Constellation3D: React.FC = () => {
         projects={data?.projects ?? []}
         onNodeSelect={selectNode}
         onProjectSelect={selectProject}
-        demoMode={false}
         onSearchResultHover={handleSearchResultHover}
       />
 

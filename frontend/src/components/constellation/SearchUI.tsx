@@ -28,7 +28,6 @@ interface SearchUIProps {
   projects: GraphProject[];
   onNodeSelect: (node: GraphNode) => void;
   onProjectSelect: (project: GraphProject) => void;
-  demoMode?: boolean;
   onSearchResultHover?: (resultId: string | null) => void;
 }
 
@@ -42,7 +41,6 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
     projects,
     onNodeSelect,
     onProjectSelect,
-    demoMode,
     onSearchResultHover,
   },
   ref
@@ -398,82 +396,61 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
   };
 
   return (
-    <div className={`search-ui ${demoMode ? 'demo-mode' : ''}`}>
-      {demoMode ? (
-        <button
-          className="search-icon-button"
-          onClick={() => {
-            inputRef.current?.focus();
-            setIsOpen(true);
-            const latestPinned = getPinnedItems();
-            const latestRecent = getRecentItems();
-            const latestRecents = getRecentSearches();
-            setPinnedItems(latestPinned);
-            setRecentItems(latestRecent);
-            setRecentSearches(latestRecents);
-            setShowRecents(true);
-          }}
-          aria-label="Search constellation (or press Cmd+K)"
-          title="Search (Cmd+K)"
-        >
-          🔍
-        </button>
-      ) : (
-        <div className="search-input-wrapper">
-          <input
-            ref={inputRef}
-            type="text"
-            className="search-input"
-            placeholder="Search nodes or projects..."
-            data-search-input="true"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            autoFocus={isOpen}
-            onFocus={() => {
-              if (query.trim()) {
+    <div className="search-ui">
+      <div className="search-input-wrapper">
+        <input
+          ref={inputRef}
+          type="text"
+          className="search-input"
+          placeholder="Search nodes or projects..."
+          data-search-input="true"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
+          autoFocus={isOpen}
+          onFocus={() => {
+            if (query.trim()) {
+              setIsOpen(true);
+              setShowRecents(false);
+            } else {
+              // Load navigation items and recent searches from localStorage
+              const latestPinned = getPinnedItems();
+              const latestRecent = getRecentItems();
+              const latestRecents = getRecentSearches();
+
+              setPinnedItems(latestPinned);
+              setRecentItems(latestRecent);
+              setRecentSearches(latestRecents);
+
+              // Show if any content available
+              if (latestPinned.length > 0 || latestRecent.length > 0 || latestRecents.length > 0) {
+                setShowRecents(true);
                 setIsOpen(true);
-                setShowRecents(false);
-              } else {
-                // Load navigation items and recent searches from localStorage
-                const latestPinned = getPinnedItems();
-                const latestRecent = getRecentItems();
-                const latestRecents = getRecentSearches();
-
-                setPinnedItems(latestPinned);
-                setRecentItems(latestRecent);
-                setRecentSearches(latestRecents);
-
-                // Show if any content available
-                if (latestPinned.length > 0 || latestRecent.length > 0 || latestRecents.length > 0) {
-                  setShowRecents(true);
-                  setIsOpen(true);
-                  setHighlightedIndex(-1);
-                }
+                setHighlightedIndex(-1);
               }
+            }
+          }}
+          onBlur={handleBlur}
+          aria-label="Search constellation"
+          aria-autocomplete="list"
+          aria-controls="search-results"
+          aria-expanded={isOpen}
+        />
+        {query && (
+          <button
+            className="search-clear"
+            onClick={() => {
+              setQuery('');
+              setIsOpen(false);
+              setShowRecents(false);
             }}
-            onBlur={handleBlur}
-            aria-label="Search constellation"
-            aria-autocomplete="list"
-            aria-controls="search-results"
-            aria-expanded={isOpen}
-          />
-          {query && (
-            <button
-              className="search-clear"
-              onClick={() => {
-                setQuery('');
-                setIsOpen(false);
-                setShowRecents(false);
-              }}
-              aria-label="Clear search"
-              title="Clear (Ctrl+A, Delete)"
-            >
-              ×
-            </button>
-          )}
-        </div>
-      )}
+            aria-label="Clear search"
+            title="Clear (Ctrl+A, Delete)"
+          >
+            ×
+          </button>
+        )}
+      </div>
 
       {/* Search results (grouped by type) */}
       {isOpen && results.length > 0 && !showRecents && (
