@@ -208,24 +208,30 @@ export const ConstellationCanvas: React.FC = () => {
     setHoveredEvidenceNodeId(null);
   }, []);
 
-  // Transform data to renderable format
+  // Transform data to renderable format (pure, no side effects)
   const renderableGraph = React.useMemo(() => {
     if (!data) return null;
+    return transformGraphToRenderable(data);
+  }, [data]);
 
-    const graph = transformGraphToRenderable(data);
+  // Update projects state when graph changes (side effects in useEffect, not useMemo)
+  useEffect(() => {
+    if (!renderableGraph) {
+      setAvailableProjects([]);
+      setProjectIndex(0);
+      return;
+    }
 
     // Compute available projects for cycling (Phase 3.3)
-    const projects = findProjectItems(graph);
+    const projects = findProjectItems(renderableGraph);
     setAvailableProjects(projects);
     setProjectIndex(0); // Reset index when graph changes
 
     // Log diagnostics in development
     if (typeof window !== 'undefined' && (window as any).__DEV__) {
-      logGraphDiagnostics(graph);
+      logGraphDiagnostics(renderableGraph);
     }
-
-    return graph;
-  }, [data]);
+  }, [renderableGraph]);
 
   // ROBUST RESET: Compute fallback frame from graph bounds if canonical is missing
   // Used when canonical capture was delayed/skipped but reset is needed
