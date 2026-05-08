@@ -967,30 +967,32 @@ export const ConstellationCanvas: React.FC = () => {
         />
       )}
 
-      <CanvasScene
-        graph={renderableGraph}
-        onUnresolvedEdgesChange={setUnresolvedEdgesCount}
-        onNodeClick={handleSelectNode}
-        onProjectClick={handleSelectProject}
-        onPersonClick={handlePersonClick}
-        onCanvasClick={undefined}
-        highlightState={highlightState}
-        semanticVisibility={semanticVisibility}
-        selectedNodeId={selectedItem?.type === 'node' ? selectedItem.data.id : undefined}
-        selectedProjectId={selectedItem?.type === 'project' ? selectedItem.data.id : undefined}
-        citedState={citedState}
-        cameraRef={cameraRef}
-        controlsRef={cameraControlsRef}
-        onControlsReady={handleControlsReady}
-        isAnimatingRef={isAnimatingRef}
-        onCancelAnimation={handleCancelAnimation}
-        selectedItem={selectedItem}
-        onClearSelection={handleCloseBillboard}
-        hoveredEvidenceNodeId={hoveredEvidenceNodeId}
-        onEvidenceHover={handleEvidenceHover}
-        onEvidenceLeave={handleEvidenceLeave}
-        onEvidenceSelect={handleEvidenceSelect}
-      />
+      {renderableGraph && (
+        <CanvasScene
+          graph={renderableGraph}
+          onUnresolvedEdgesChange={setUnresolvedEdgesCount}
+          onNodeClick={handleSelectNode}
+          onProjectClick={handleSelectProject}
+          onPersonClick={handlePersonClick}
+          onCanvasClick={undefined}
+          highlightState={highlightState}
+          semanticVisibility={semanticVisibility}
+          selectedNodeId={selectedItem?.type === 'node' ? selectedItem.data.id : undefined}
+          selectedProjectId={selectedItem?.type === 'project' ? selectedItem.data.id : undefined}
+          citedState={citedState}
+          cameraRef={cameraRef}
+          controlsRef={cameraControlsRef}
+          onControlsReady={handleControlsReady}
+          isAnimatingRef={isAnimatingRef}
+          onCancelAnimation={handleCancelAnimation}
+          selectedItem={selectedItem}
+          onClearSelection={handleCloseBillboard}
+          hoveredEvidenceNodeId={hoveredEvidenceNodeId}
+          onEvidenceHover={handleEvidenceHover}
+          onEvidenceLeave={handleEvidenceLeave}
+          onEvidenceSelect={handleEvidenceSelect}
+        />
+      )}
 
       {/* Phase 3 (Current Session): Side panel only renders when explicitly opened via "More" button */}
       {sidePanelOpen && selectedItem && (
