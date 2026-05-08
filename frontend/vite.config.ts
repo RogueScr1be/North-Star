@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    dedupe: ['three'],
+  },
   server: {
     port: 3000,
     proxy: {
@@ -19,16 +22,15 @@ export default defineConfig({
       'react-router-dom',
       'd3-force',
       'three',
+      'three-stdlib',
       '@react-three/fiber',
       '@react-three/drei',
     ],
-    exclude: ['three-stdlib', '@react-three/postprocessing', 'postprocessing'],
+    exclude: ['@react-three/postprocessing', 'postprocessing'],
   },
   build: {
     outDir: 'dist',
     sourcemap: false,
-    rollupOptions: {
-      external: ['three', '@react-three/fiber', '@react-three/drei'],
-    },
   },
 })
+
