@@ -1,5 +1,38 @@
 # Failure Log & Guardrails
 
+## Phase 10.0c+ Correction: Incorrect SearchUI Gating Strategy (2026-05-07 Revised)
+
+**Issue:** Commit 14cfc81 attempted to fix stale UI regression by gating the entire SearchUI component behind `VITE_ENABLE_TOP_SEARCH=false`. This approach was fundamentally incorrect and caused a white-screen regression on the `/constellation` route.
+
+**Root Cause of the Incorrect Fix:**
+- SearchUI component has TWO render modes controlled by the `demoMode` prop:
+  1. `demoMode=true`: Renders icon-only button (🔍) — the OLD search to remove
+  2. `demoMode=false`: Renders text-input field — the NEW canonical search to keep
+- Commit 14cfc81 misidentified which mode was "stale" and gated the entire component
+- This broke BOTH the old and new search surfaces
+- Result: White screen on `/constellation` route (React error: SearchUI missing)
+
+**Lesson: UI Component Feature Gating Must Target Specific Render Paths, Not Entire Components**
+- When a component has conditional logic (branching render paths), feature flags should gate specific branches, not the entire component
+- Gating the entire component assumes the whole thing is "stale," which is rarely correct
+- Better approach: Remove the stale branch from the component code (demoMode=true), keep the needed branch
+
+**Correct Fix Applied (Commit 045ceff):**
+1. Removed the `demoMode=true` branch (icon-only button) from SearchUI.tsx
+2. Kept the `demoMode=false` branch (text-input field)
+3. Removed the `demoMode` prop from SearchUIProps interface (no longer used)
+4. Restored unconditional SearchUI rendering in ConstellationCanvas.tsx
+5. Deleted VITE_ENABLE_TOP_SEARCH from .env and vercel.json (feature flag no longer needed)
+6. Verified: Build succeeds (TypeScript 0 errors), preview server starts, /constellation route loads valid HTML
+
+**Guardrail for Future Phases:**
+- SearchUI has dual-mode rendering; feature flags should gate only the specific branch to remove, not the entire component
+- When a component exhibits "stale" behavior, always check if it has conditional rendering before gating the whole component
+- Code-level removal (delete the stale branch) is cleaner than environment-variable gating of entire components
+- **CRITICAL: Runtime browser QA required after any /constellation composition edits** — Build success, preview server, and curl HTML response do NOT prove React mount or R3F render. Always verify in production browser before marking fixed.
+
+---
+
 ## Phase 10.0c+ Hotfix: Stale UI Components in Deployed Demo (2026-05-07)
 
 **Pattern:** After successful Vercel build (commit 67e303b), constellation route showed UI regressions:

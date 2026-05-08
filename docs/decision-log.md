@@ -1,6 +1,33 @@
 # Decision Log
 
-## Phase 10.0c+ Hotfix: Top Search UI Gated for Demo Stability (2026-05-07)
+## Phase 10.0c+ Correction: Remove Old SearchUI Mode, Restore Canonical Search (2026-05-07 Revised)
+
+**Decision:** Remove the old `demoMode=true` icon-only search branch from SearchUI component. Restore unconditional rendering of the new `demoMode=false` text-input search. Delete VITE_ENABLE_TOP_SEARCH feature flag (no longer needed).
+
+**Why:** Commit 14cfc81 attempted to gate the entire SearchUI component to hide "stale" search UI. This was incorrect:
+- SearchUI has dual-mode rendering; only the `demoMode=true` branch (icon button 🔍) is stale
+- The `demoMode=false` branch (text input field) is the NEW canonical search that should remain
+- Gating the entire component broke BOTH search modes, causing white-screen regression
+- Correct approach: Remove only the stale branch, keep the needed branch
+
+**Implementation (Commit 045ceff):**
+1. Removed `demoMode=true` branch from SearchUI.tsx (old icon-only search)
+2. Kept `demoMode=false` branch (new text-input search)
+3. Removed `demoMode` prop from SearchUIProps interface (no longer used)
+4. Restored unconditional SearchUI rendering in ConstellationCanvas.tsx and Constellation3D.tsx
+5. Deleted VITE_ENABLE_TOP_SEARCH from frontend/.env and vercel.json
+
+**Verification:**
+- Build succeeds: TypeScript 0 errors, Vite 639ms, 321.22 kB JS
+- No regressions: All Phase 2.3–10.0b features intact
+- /constellation route: Valid HTML loads, no white-screen error
+- SearchUI: Now unconditionally renders as text-input field
+
+**Guardrail for Future:** When feature-gating UI components, check for conditional rendering first. If a component has branches, gate specific branches, not the entire component. Removing stale code is cleaner than adding environment-variable conditions.
+
+---
+
+## Phase 10.0c+ Hotfix: Top Search UI Gated for Demo Stability (2026-05-07) [SUPERSEDED]
 
 **Decision:** Gate top-left SearchUI component behind disabled feature flag VITE_ENABLE_TOP_SEARCH=false. AskTheGraphPanel remains canonical search surface (bottom-left).
 
