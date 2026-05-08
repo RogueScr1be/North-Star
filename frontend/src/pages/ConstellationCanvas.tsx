@@ -22,7 +22,9 @@ import { SearchUI, SearchUIHandle } from '../components/constellation/SearchUI';
 import { AskTheGraphPanel } from '../components/constellation/AskTheGraphPanel';
 import { SemanticFilters } from '../components/constellation/SemanticFilters';
 import { LayoutModeSelector } from '../components/constellation/LayoutModeSelector';
+import { DemoControls } from '../components/constellation/DemoControls';
 import { ResetFrameButton } from '../components/constellation/ResetFrameButton';
+import { HeroItem, findProjectItems, findNearestProject } from '../lib/graph/heroItems';
 import { isEditableElement } from '../lib/keyboard/editableElementDetection';
 import {
   logSemanticFilterToggled,
@@ -39,6 +41,9 @@ export const ConstellationCanvas: React.FC = () => {
   const cameraRef = useRef<THREE.OrthographicCamera>(null);
   const [citedState, setCitedState] = useState<CitedState>({ citedNodeIds: new Set(), citedProjectIds: new Set(), citedEdgeIds: new Set() });
   const [hoveredEvidenceNodeId, setHoveredEvidenceNodeId] = useState<string | null>(null);
+
+  // Phase B: Demo mode environment flag for constellation-first UI
+  const demoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
   // Phase 3: Canvas dimensions for SelectionPanel positioning (remove DOM coupling)
   const [canvasWidth, setCanvasWidth] = useState<number | undefined>(undefined);
@@ -131,6 +136,10 @@ export const ConstellationCanvas: React.FC = () => {
     };
   }, [controlsReady]);
 
+  // Phase 3.3: Project focus controls - project cycling
+  const [availableProjects, setAvailableProjects] = useState<HeroItem[]>([]);
+  const [projectIndex, setProjectIndex] = useState(0);
+
   // Phase D: Expose OrbitControls from GraphCamera via callback
   const handleControlsReady = React.useCallback((controls: any) => {
     cameraControlsRef.current = controls;
@@ -204,6 +213,11 @@ export const ConstellationCanvas: React.FC = () => {
     if (!data) return null;
 
     const graph = transformGraphToRenderable(data);
+
+    // Compute available projects for cycling (Phase 3.3)
+    const projects = findProjectItems(graph);
+    setAvailableProjects(projects);
+    setProjectIndex(0); // Reset index when graph changes
 
     // Log diagnostics in development
     if (typeof window !== 'undefined' && (window as any).__DEV__) {
@@ -302,6 +316,127 @@ export const ConstellationCanvas: React.FC = () => {
       cleanup();
     };
   }, [handleCloseBillboard, computeGraphBoundsFrame]); // Depends on both handlers
+
+  // Phase 3.3: Focus on nearest project with adaptive zoom
+  // MUST be defined AFTER renderableGraph (used in dependency array)
+  const handleFocusProject = React.useCallback(() => {
+    if (!renderableGraph || !cameraRef.current || !cameraControlsRef.current) {
+      return;
+    }
+
+    // Find project closest to current screen center
+    // Screen center in 2D: calculate from camera and controls target
+    const screenCenterPos: [number, number] = [
+      cameraControlsRef.current.target.x,
+      cameraControlsRef.current.target.y
+    ];
+
+    const project = findNearestProject(renderableGraph, screenCenterPos);
+    if (!project) {
+      console.log('[ConstellationCanvas] No project found');
+      return;
+    }
+
+    // Resolve project to renderable entity with position property
+    const projectEntity = renderableGraph.projects.find(p => p.id === project.id);
+
+    if (!projectEntity?.position) {
+      console.log('[ConstellationCanvas] Project entity position not found');
+      return;
+    }
+
+    // Cancel any active animation
+    if (activeAnimationCleanupRef.current) {
+      activeAnimationCleanupRef.current();
+      activeAnimationCleanupRef.current = null;
+    }
+
+    // Mark animation as active
+    isAnimatingRef.current = true;
+
+    // Compute adaptive focus target relative to current camera state
+    const projectPosition = new THREE.Vector3(projectEntity.position[0], projectEntity.position[1], 0);
+    const { targetPosition, targetLookAt } = computeFocusTarget(
+      [projectPosition],
+      cameraRef.current.position.z
+    );
+
+    // Animate to project
+    const cleanup = animateCamera(
+      cameraRef.current,
+      cameraControlsRef.current,
+      targetPosition,
+      targetLookAt,
+      500
+    );
+
+    // Wrap cleanup to clear animation flag
+    activeAnimationCleanupRef.current = () => {
+      isAnimatingRef.current = false;
+      cleanup();
+    };
+    console.log('[ConstellationCanvas] Focus project:', project.id);
+  }, [renderableGraph]);
+
+  // Phase 3.3: Cycle to next project
+  const handleNextProject = React.useCallback(() => {
+    if (availableProjects.length === 0) return;
+
+    // Advance to next project
+    const nextIndex = (projectIndex + 1) % availableProjects.length;
+    setProjectIndex(nextIndex);
+
+    // Immediately focus the next project
+    if (!renderableGraph || !cameraRef.current || !cameraControlsRef.current) {
+      return;
+    }
+
+    const nextProject = availableProjects[nextIndex];
+    if (!nextProject) {
+      console.log('[ConstellationCanvas] No next project found');
+      return;
+    }
+
+    // Resolve project to renderable entity with position property
+    const projectEntity = renderableGraph.projects.find(p => p.id === nextProject.id);
+
+    if (!projectEntity?.position) {
+      console.log('[ConstellationCanvas] Next project entity position not found');
+      return;
+    }
+
+    // Cancel any active animation
+    if (activeAnimationCleanupRef.current) {
+      activeAnimationCleanupRef.current();
+      activeAnimationCleanupRef.current = null;
+    }
+
+    // Mark animation as active
+    isAnimatingRef.current = true;
+
+    // Compute adaptive focus target relative to current camera state
+    const projectPosition = new THREE.Vector3(projectEntity.position[0], projectEntity.position[1], 0);
+    const { targetPosition, targetLookAt } = computeFocusTarget(
+      [projectPosition],
+      cameraRef.current.position.z
+    );
+
+    // Animate to next project
+    const cleanup = animateCamera(
+      cameraRef.current,
+      cameraControlsRef.current,
+      targetPosition,
+      targetLookAt,
+      500
+    );
+
+    // Wrap cleanup to clear animation flag
+    activeAnimationCleanupRef.current = () => {
+      isAnimatingRef.current = false;
+      cleanup();
+    };
+    console.log('[ConstellationCanvas] Focus next project:', nextProject.id);
+  }, [availableProjects, projectIndex, renderableGraph]);
 
   // Semantic graph navigation (Phase 5.5)
   const {
@@ -795,6 +930,18 @@ export const ConstellationCanvas: React.FC = () => {
         }}
         disabled={!controlsReady}
       />
+
+      {/* Phase 3.3: Project focus controls visible only in demo mode */}
+      {demoMode && (
+        <DemoControls
+          onResetFrame={() => {
+            console.log('[RESET_FRAME_BUTTON] clicked at', new Date().toISOString());
+            handleResetFrame();
+          }}
+          onFocusProject={handleFocusProject}
+          onNextProject={handleNextProject}
+        />
+      )}
 
       {/* Phase 8.0: Semantic filters hidden by default (collapsible, enable when needed) */}
       {showSemanticFilters && (
