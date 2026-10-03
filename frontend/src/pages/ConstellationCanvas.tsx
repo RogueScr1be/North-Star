@@ -986,7 +986,7 @@ export const ConstellationCanvas: React.FC = () => {
     return (
       <div className="constellation-container constellation-state">
         <div className="state-content">
-          <div className="spinner"></div>
+          <img className="loading-logo" src="/splash-logo.png" alt="North Star" width={96} height={96} />
           <h2>Loading Constellation Canvas...</h2>
           <p>Fetching graph from API</p>
         </div>
