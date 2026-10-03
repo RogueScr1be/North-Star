@@ -5706,3 +5706,9 @@ Ready for demo launch with atmospheric context suggesting founder-scale ecosyste
 - Gotchas: `IntroOverlay` unmounts itself after its first fade → remount with a `key` cycle counter; picking layer unmounting while hovered leaves `cursor: pointer` → reset `document.body.style.cursor` before unmounting; clicks during `running`/`reversing` are inert because pickers aren't mounted.
 - Person click previously only ran a camera focus on the origin (no billboard); that behavior is replaced by collapse once the intro is complete.
 - Rollback: revert the single `feat(constellation): allow person node to collapse intro` commit.
+
+### Idle-intro click leak (2026-10-03)
+- **Bug:** in the idle intro frame every node/project is hidden but stacked at the origin behind the person node. Unmounting the picking layer was NOT enough — `NodeGeometry` meshes carry their own `onClick`, and the parent's `onNodeClick` was still wired, so clicking the person selected a hidden skill node (billboard behind the intro).
+- **Rule:** hiding an object (`visible=false` / moved to origin) doesn't stop R3F pointer events. Withhold the handlers themselves (`onNodeClick={introActive ? undefined : ...}`) in addition to unmounting pickers.
+- Only two things start the expansion from idle: the Enter button and the center person node (`enterRef` hand-off from `handlePersonClick`; overlay fades via `leave` prop).
+- QA that works: sweep clicks across the idle frame OUTSIDE the person hit radius (must change nothing), and assert a click inside it expands without setting `?selected=`. Always `mouse.move` before `mouse.click` for R3F hover/pointer state.
