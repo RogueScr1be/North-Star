@@ -26,6 +26,11 @@ import { DemoControls } from '../components/constellation/DemoControls';
 import { ResetFrameButton } from '../components/constellation/ResetFrameButton';
 import { HeroItem, findProjectItems, findNearestProject } from '../lib/graph/heroItems';
 import { isEditableElement } from '../lib/keyboard/editableElementDetection';
+import { IntroOverlay } from '../components/constellation/IntroOverlay';
+import { IntroController, IntroPhase } from '../components/constellation/IntroContext';
+import { buildIntroSchedule, INTRO_CAMERA_MS } from '../lib/graph/introSchedule';
+import { CameraFrame, computeCloseUpFrame, applyFrame, animateFrame } from '../lib/graph/introCamera';
+import { getNodeVisualSize } from '../lib/rendering/nodeSizingConstants';
 import {
   logSemanticFilterToggled,
   logSemanticFiltersCleared,
@@ -107,6 +112,22 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Phase D: Readiness flags for canonical framing capture (prevents circular dependency)
   const [controlsReady, setControlsReady] = useState(false);
+
+  // Cinematic intro (presentation-only). Skipped via ?skipIntro=1, ?selected=, or reduced motion.
+  const [introPhase, setIntroPhase] = useState<IntroPhase>(() => {
+    if (typeof window === 'undefined') return 'complete';
+    const params = new URLSearchParams(window.location.search);
+    const skip =
+      params.get('skipIntro') === '1' ||
+      params.has('selected') ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    return skip ? 'complete' : 'idle';
+  });
+  const introPhaseRef = useRef<IntroPhase>(introPhase);
+  const introStartRef = useRef<number>(0);
+  const introCancelRef = useRef<(() => void) | null>(null);
+  const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [introCloseUpReady, setIntroCloseUpReady] = useState(false);
 
   // Phase 4C: Gesture cancellation — stop animation when user interacts with controls
   useEffect(() => {
@@ -283,6 +304,10 @@ export const ConstellationCanvas: React.FC = () => {
   const handleResetFrame = React.useCallback(() => {
     // Require camera and controls to be ready
     if (!cameraRef.current || !cameraControlsRef.current) {
+      return;
+    }
+    // Reset is unavailable while the intro owns the camera
+    if (introPhaseRef.current !== 'complete') {
       return;
     }
 
@@ -834,6 +859,97 @@ export const ConstellationCanvas: React.FC = () => {
     [renderableGraph]
   );
 
+  // ---- Cinematic intro controller (presentation-only; never touches graph data) ----
+  const finishIntro = React.useCallback(() => {
+    if (introPhaseRef.current === 'complete') return;
+    introCancelRef.current?.();
+    introCancelRef.current = null;
+    if (introTimerRef.current) {
+      clearTimeout(introTimerRef.current);
+      introTimerRef.current = null;
+    }
+    // Land exactly on the canonical frame so reset/selection behave as before
+    const canonical = canonicalFramingRef.current;
+    if (canonical && cameraRef.current && cameraControlsRef.current) {
+      applyFrame(cameraRef.current, cameraControlsRef.current, canonical);
+    }
+    if (cameraControlsRef.current) cameraControlsRef.current.enabled = true;
+    introPhaseRef.current = 'complete';
+    setIntroPhase('complete');
+  }, []);
+
+  const introController = React.useMemo<IntroController | null>(() => {
+    if (!renderableGraph) return null;
+    return {
+      schedule: buildIntroSchedule(
+        renderableGraph.projects.map(p => ({ id: p.id, gravity_score: p.gravity_score })),
+        renderableGraph.nodes.map(n => ({ id: n.id, gravity_score: n.gravity_score }))
+      ),
+      phaseRef: introPhaseRef,
+      startRef: introStartRef,
+      onFail: finishIntro,
+    };
+  }, [renderableGraph, finishIntro]);
+
+  // Place the camera in the extreme close-up once canonical framing has been captured
+  useEffect(() => {
+    if (introPhase !== 'idle' || !controlsReady || introCloseUpReady) return;
+    const canonical = canonicalFramingRef.current;
+    if (!canonical || !cameraRef.current || !cameraControlsRef.current) return;
+    try {
+      const closeUp = computeCloseUpFrame(cameraRef.current, canonical, getNodeVisualSize('person'));
+      applyFrame(cameraRef.current, cameraControlsRef.current, closeUp);
+      cameraControlsRef.current.enabled = false;
+      setIntroCloseUpReady(true);
+    } catch (err) {
+      console.warn('[Intro] close-up failed, showing complete graph', err);
+      finishIntro();
+    }
+  }, [introPhase, controlsReady, introCloseUpReady, finishIntro]);
+
+  // Watchdog: if the close-up never becomes ready, fall back to the normal graph
+  useEffect(() => {
+    if (introPhase !== 'idle' || introCloseUpReady) return;
+    const t = setTimeout(() => {
+      if (introPhaseRef.current === 'idle') finishIntro();
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [introPhase, introCloseUpReady, finishIntro]);
+
+  const handleEnterIntro = React.useCallback(() => {
+    const camera = cameraRef.current;
+    const controls = cameraControlsRef.current;
+    const canonical = canonicalFramingRef.current;
+    if (introPhaseRef.current !== 'idle' || !camera || !controls || !canonical || !introController) {
+      finishIntro();
+      return;
+    }
+    try {
+      const from: CameraFrame = {
+        position: camera.position.clone(),
+        target: controls.target.clone(),
+        zoom: camera.zoom,
+      };
+      introStartRef.current = performance.now();
+      introPhaseRef.current = 'running';
+      setIntroPhase('running');
+      introCancelRef.current = animateFrame(camera, controls, from, canonical, INTRO_CAMERA_MS, () => {
+        introCancelRef.current = null;
+      });
+      const total = Math.max(INTRO_CAMERA_MS, introController.schedule.totalMs) + 250;
+      introTimerRef.current = setTimeout(finishIntro, total);
+    } catch (err) {
+      console.warn('[Intro] failed, showing complete graph', err);
+      finishIntro();
+    }
+  }, [introController, finishIntro]);
+
+  useEffect(() => () => {
+    introCancelRef.current?.();
+    if (introTimerRef.current) clearTimeout(introTimerRef.current);
+  }, []);
+  const introDone = introPhase === 'complete';
+
   // Global Cmd+K / Ctrl+K keyboard shortcut (Phase 3.2)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -913,6 +1029,9 @@ export const ConstellationCanvas: React.FC = () => {
   return (
     <div className="constellation-container">
       {/* Phase 10.0c+: Top search UI (AskTheGraphPanel companion) */}
+      {!introDone && <IntroOverlay ready={introCloseUpReady} onEnter={handleEnterIntro} />}
+
+      {introDone && (
       <SearchUI
         ref={searchUIRef}
         nodes={data?.nodes ?? []}
@@ -920,6 +1039,7 @@ export const ConstellationCanvas: React.FC = () => {
         onNodeSelect={selectNode}
         onProjectSelect={selectProject}
       />
+      )}
 
       {/* Phase 8.0: Layout toggle hidden in demo mode (D3 remains experimental, never default) */}
       {false && (
@@ -930,12 +1050,14 @@ export const ConstellationCanvas: React.FC = () => {
       )}
 
       {/* Phase 5.3: Reset frame button enabled once controls are ready */}
+      {introDone && (
       <ResetFrameButton
         onClick={() => {
           handleResetFrame();
         }}
         disabled={!controlsReady}
       />
+      )}
 
       {/* Phase 3.3: Project focus controls visible only in demo mode */}
       {demoMode && (
@@ -991,6 +1113,8 @@ export const ConstellationCanvas: React.FC = () => {
           onEvidenceHover={handleEvidenceHover}
           onEvidenceLeave={handleEvidenceLeave}
           onEvidenceSelect={handleEvidenceSelect}
+          intro={introController}
+          introPhase={introPhase}
         />
       )}
 
@@ -1015,6 +1139,7 @@ export const ConstellationCanvas: React.FC = () => {
         />
       )}
 
+      {introDone && (
       <AskTheGraphPanel
         nodes={data?.nodes ?? []}
         projects={data?.projects ?? []}
@@ -1023,6 +1148,7 @@ export const ConstellationCanvas: React.FC = () => {
         onProjectSelect={selectProject}
         onEvidenceFocus={handleEvidenceFocus}
       />
+      )}
 
       {/* Dev diagnostics overlay */}
       {typeof window !== 'undefined' && (window as any).__DEV__ && (
