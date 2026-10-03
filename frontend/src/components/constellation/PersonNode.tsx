@@ -170,12 +170,16 @@ function PersonGlowSprite() {
  */
 function PersonLabel() {
   const personVisualSize = useMemo(() => getNodeVisualSize('person'), []);
-  const labelOffsetY = personVisualSize * 1.5 + 1.0; // Offset proportional to person size
+  // Label stack sits fully ABOVE the torus ring (outer radius ~ size * 2.15), name over title,
+  // so neither line collides with the sphere or ring.
+  const ringTop = personVisualSize * 2.15;
+  const titleY = ringTop + 0.45;
+  const nameY = titleY + 0.7;
 
   return (
     <>
       <Text
-        position={[0, labelOffsetY, 1.5]}
+        position={[0, nameY, 1.5]}
         fontSize={0.8}
         color={0x00FFCC}
         maxWidth={4.0}
@@ -187,13 +191,13 @@ function PersonLabel() {
         Prentiss
       </Text>
       <Text
-        position={[0, labelOffsetY - 0.7, 1.5]}
+        position={[0, titleY, 1.5]}
         fontSize={0.5}
         color={0x00BBAA}
-        maxWidth={4.0}
+        maxWidth={8.0}
         textAlign="center"
         anchorX="center"
-        anchorY="top"
+        anchorY="bottom"
         letterSpacing={0.05}
       >
         Frontier Operator
