@@ -5699,3 +5699,10 @@ Ready for demo launch with atmospheric context suggesting founder-scale ecosyste
 - Vercel preview toolbar icons pollute pixel measurements at screen edges; judge by screenshot / composition extents, not a global bright-pixel bbox.
 - Local `vite preview` returns 404 for /favicon.ico (console error); Vercel's SPA rewrite hides it. Not a regression.
 - **Stop rule:** intro polish ends here. No more polish unless demo-blocking; RC1 remains the fallback.
+
+### Intro reverse loop (2026-10-03)
+- Person-node click (phase `complete`) collapses the graph back to the intro first frame: phases `idle -> running -> complete -> reversing -> idle`. Intro-state reversal only — NOT reset logic, no data/position changes, no splash on collapse.
+- Reverse = the forward schedule played backwards (`getReverseProgress`, 3.2s); camera animates to the close-up frame; Enter overlay only mounts when the collapse lands.
+- Gotchas: `IntroOverlay` unmounts itself after its first fade → remount with a `key` cycle counter; picking layer unmounting while hovered leaves `cursor: pointer` → reset `document.body.style.cursor` before unmounting; clicks during `running`/`reversing` are inert because pickers aren't mounted.
+- Person click previously only ran a camera focus on the origin (no billboard); that behavior is replaced by collapse once the intro is complete.
+- Rollback: revert the single `feat(constellation): allow person node to collapse intro` commit.
