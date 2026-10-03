@@ -10,6 +10,7 @@
 export const INTRO_BATCH_DELAY_MS = 180; // within the 150-220ms spec window
 export const INTRO_TRAVEL_MS = 900; // per-entity outward travel time
 export const INTRO_CAMERA_MS = 3200; // camera pullback duration
+export const INTRO_REVERSE_MS = 3200; // collapse duration (forward timeline played backwards)
 const BATCH_SIZES = [2, 3]; // alternating, deterministic
 
 export interface IntroSchedule {
@@ -58,6 +59,20 @@ export function buildIntroSchedule(
 
   const lastStart = batch === 0 ? 0 : (batch - 1) * INTRO_BATCH_DELAY_MS;
   return { startById, order, totalMs: lastStart + INTRO_TRAVEL_MS };
+}
+
+/**
+ * Collapse progress: the forward timeline played backwards over INTRO_REVERSE_MS, so entities
+ * that launched last return first and the motion is an ease-in toward the center.
+ * 1 at reverse start (all landed), 0 at the end (all back at the person node).
+ */
+export function getReverseProgress(
+  schedule: IntroSchedule,
+  id: string,
+  elapsedMs: number
+): number {
+  const e = Math.min(Math.max(elapsedMs / INTRO_REVERSE_MS, 0), 1);
+  return getIntroProgress(schedule, id, schedule.totalMs * (1 - e));
 }
 
 const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);

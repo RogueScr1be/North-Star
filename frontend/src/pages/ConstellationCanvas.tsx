@@ -29,7 +29,7 @@ import { isEditableElement } from '../lib/keyboard/editableElementDetection';
 import { IntroOverlay } from '../components/constellation/IntroOverlay';
 import { SplashScreen } from '../components/constellation/SplashScreen';
 import { IntroController, IntroPhase } from '../components/constellation/IntroContext';
-import { buildIntroSchedule, INTRO_CAMERA_MS } from '../lib/graph/introSchedule';
+import { buildIntroSchedule, INTRO_CAMERA_MS, INTRO_REVERSE_MS } from '../lib/graph/introSchedule';
 import { CameraFrame, computeCloseUpFrame, applyFrame, animateFrame } from '../lib/graph/introCamera';
 import { getNodeVisualSize } from '../lib/rendering/nodeSizingConstants';
 import {
@@ -129,6 +129,8 @@ const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onS
   const introCancelRef = useRef<(() => void) | null>(null);
   const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [introCloseUpReady, setIntroCloseUpReady] = useState(false);
+  const collapseRef = useRef<(() => void) | null>(null);
+  const [introCycle, setIntroCycle] = useState(0); // remounts IntroOverlay after a collapse
 
   // Phase 4C: Gesture cancellation — stop animation when user interacts with controls
   useEffect(() => {
@@ -599,6 +601,11 @@ const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onS
 
   // Handle person node selection (render-layer synthetic node at origin)
   const handlePersonClick = React.useCallback(() => {
+    // Intro loop: a deliberate click on the center node collapses back to the intro frame
+    if (introPhaseRef.current === 'complete' && collapseRef.current) {
+      collapseRef.current();
+      return;
+    }
     // Create synthetic person selection
     // Since person is a render-layer node, not a backend entity, we use a synthetic data object
     clearSelection(); // Clear existing selection first
@@ -945,11 +952,57 @@ const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onS
     }
   }, [introController, finishIntro]);
 
+  // Reverse: clicking the center person node collapses the graph back to the intro first frame
+  // (centered person + Enter). Intro-state reversal only: no reset logic, no graph data changes.
+  const handleCollapseToIntro = React.useCallback(() => {
+    const camera = cameraRef.current;
+    const controls = cameraControlsRef.current;
+    const canonical = canonicalFramingRef.current;
+    if (introPhaseRef.current !== 'complete' || !camera || !controls || !canonical || !introController) return;
+    try {
+      document.body.style.cursor = 'auto'; // picking layer unmounts while hovered
+      handleCloseBillboard(); // clears selection + evidence hover
+      activeAnimationCleanupRef.current?.();
+      activeAnimationCleanupRef.current = null;
+      isAnimatingRef.current = false;
+      controls.enabled = false;
+
+      const closeUp = computeCloseUpFrame(camera, canonical, getNodeVisualSize('person'));
+      const settle = () => {
+        introCancelRef.current?.();
+        introCancelRef.current = null;
+        if (introTimerRef.current) { clearTimeout(introTimerRef.current); introTimerRef.current = null; }
+        applyFrame(camera, controls, closeUp);
+        controls.enabled = false;
+        introPhaseRef.current = 'idle';
+        setIntroCycle(c => c + 1);
+        setIntroPhase('idle');
+      };
+
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        settle();
+        return;
+      }
+      const from: CameraFrame = { position: camera.position.clone(), target: controls.target.clone(), zoom: camera.zoom };
+      introStartRef.current = performance.now();
+      introPhaseRef.current = 'reversing';
+      setIntroPhase('reversing');
+      introCancelRef.current = animateFrame(camera, controls, from, closeUp, INTRO_REVERSE_MS, () => {
+        introCancelRef.current = null;
+      });
+      introTimerRef.current = setTimeout(settle, INTRO_REVERSE_MS + 250);
+    } catch (err) {
+      console.warn('[Intro] collapse failed, restoring complete graph', err);
+      finishIntro();
+    }
+  }, [introController, handleCloseBillboard, finishIntro]);
+
   useEffect(() => () => {
     introCancelRef.current?.();
     if (introTimerRef.current) clearTimeout(introTimerRef.current);
   }, []);
   const introDone = introPhase === 'complete';
+  collapseRef.current = handleCollapseToIntro;
 
   // Global Cmd+K / Ctrl+K keyboard shortcut (Phase 3.2)
   useEffect(() => {
@@ -1029,7 +1082,7 @@ const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onS
   return (
     <div className="constellation-container">
       {/* Phase 10.0c+: Top search UI (AskTheGraphPanel companion) */}
-      {!introDone && <IntroOverlay ready={introCloseUpReady} onEnter={handleEnterIntro} />}
+      {!introDone && introPhase !== 'reversing' && <IntroOverlay key={introCycle} ready={introCloseUpReady} onEnter={handleEnterIntro} />}
 
       {introDone && (
       <SearchUI

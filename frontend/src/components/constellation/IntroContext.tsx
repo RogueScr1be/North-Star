@@ -9,14 +9,14 @@
 import { createContext, useContext, useLayoutEffect, useRef, MutableRefObject, ReactNode } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { IntroSchedule, getIntroProgress } from '../../lib/graph/introSchedule';
+import { IntroSchedule, getIntroProgress, getReverseProgress } from '../../lib/graph/introSchedule';
 
-export type IntroPhase = 'idle' | 'running' | 'complete';
+export type IntroPhase = 'idle' | 'running' | 'reversing' | 'complete';
 
 export interface IntroController {
   schedule: IntroSchedule;
   phaseRef: MutableRefObject<IntroPhase>;
-  /** performance.now() at burst start */
+  /** performance.now() at burst start (or collapse start while reversing) */
   startRef: MutableRefObject<number>;
   /** Called if any intro frame logic throws: parent forces the normal complete state. */
   onFail: () => void;
@@ -31,6 +31,7 @@ export function readIntroProgress(intro: IntroController | null, id: string): nu
   const phase = intro.phaseRef.current;
   if (phase === 'complete') return 1;
   if (phase === 'idle') return 0;
+  if (phase === 'reversing') return getReverseProgress(intro.schedule, id, performance.now() - intro.startRef.current);
   return getIntroProgress(intro.schedule, id, performance.now() - intro.startRef.current);
 }
 

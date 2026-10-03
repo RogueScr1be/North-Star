@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildIntroSchedule,
   getIntroProgress,
+  getReverseProgress,
+  INTRO_REVERSE_MS,
   INTRO_BATCH_DELAY_MS,
   INTRO_TRAVEL_MS,
 } from '../introSchedule';
@@ -49,5 +51,21 @@ describe('introSchedule', () => {
 
   it('never hides unknown ids', () => {
     expect(getIntroProgress(s, 'unknown', 0)).toBe(1);
+  });
+
+  it('reverse: starts fully landed, ends fully collapsed, and returns last-launched first', () => {
+    expect(getReverseProgress(s, 'n-d', 0)).toBe(1);
+    expect(getReverseProgress(s, 'p-high', INTRO_REVERSE_MS)).toBe(0);
+    expect(getReverseProgress(s, 'n-d', INTRO_REVERSE_MS)).toBe(0);
+    // n-d launched last, so at the start of the collapse it has already left its landing spot
+    const t = INTRO_REVERSE_MS * 0.2;
+    expect(getReverseProgress(s, 'n-d', t)).toBeLessThan(getReverseProgress(s, 'p-high', t));
+    // monotonic non-increasing
+    let prev = 1;
+    for (let ms = 0; ms <= INTRO_REVERSE_MS; ms += 100) {
+      const v = getReverseProgress(s, 'n-e', ms);
+      expect(v).toBeLessThanOrEqual(prev + 1e-9);
+      prev = v;
+    }
   });
 });
