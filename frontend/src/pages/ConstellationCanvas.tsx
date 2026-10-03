@@ -130,6 +130,7 @@ const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onS
   const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [introCloseUpReady, setIntroCloseUpReady] = useState(false);
   const collapseRef = useRef<(() => void) | null>(null);
+  const enterRef = useRef<(() => void) | null>(null);
   const [introCycle, setIntroCycle] = useState(0); // remounts IntroOverlay after a collapse
 
   // Phase 4C: Gesture cancellation — stop animation when user interacts with controls
@@ -601,6 +602,11 @@ const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onS
 
   // Handle person node selection (render-layer synthetic node at origin)
   const handlePersonClick = React.useCallback(() => {
+    // Intro idle: the center node is one of the two ways (with Enter) to start the expansion
+    if (introPhaseRef.current === 'idle' && enterRef.current) {
+      enterRef.current();
+      return;
+    }
     // Intro loop: a deliberate click on the center node collapses back to the intro frame
     if (introPhaseRef.current === 'complete' && collapseRef.current) {
       collapseRef.current();
@@ -1003,6 +1009,7 @@ const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onS
   }, []);
   const introDone = introPhase === 'complete';
   collapseRef.current = handleCollapseToIntro;
+  enterRef.current = introCloseUpReady ? handleEnterIntro : null;
 
   // Global Cmd+K / Ctrl+K keyboard shortcut (Phase 3.2)
   useEffect(() => {
@@ -1082,7 +1089,7 @@ const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onS
   return (
     <div className="constellation-container">
       {/* Phase 10.0c+: Top search UI (AskTheGraphPanel companion) */}
-      {!introDone && introPhase !== 'reversing' && <IntroOverlay key={introCycle} ready={introCloseUpReady} onEnter={handleEnterIntro} />}
+      {!introDone && introPhase !== 'reversing' && <IntroOverlay key={introCycle} ready={introCloseUpReady} onEnter={handleEnterIntro} leave={introPhase === 'running'} />}
 
       {introDone && (
       <SearchUI

@@ -12,9 +12,11 @@ import './IntroOverlay.css';
 interface IntroOverlayProps {
   ready: boolean;
   onEnter: () => void;
+  /** Externally triggered start (e.g. center node click): fade out like a button click. */
+  leave?: boolean;
 }
 
-export const IntroOverlay: React.FC<IntroOverlayProps> = ({ ready, onEnter }) => {
+export const IntroOverlay: React.FC<IntroOverlayProps> = ({ ready, onEnter, leave = false }) => {
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -22,6 +24,10 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ ready, onEnter }) =>
   useEffect(() => {
     if (ready) btnRef.current?.focus();
   }, [ready]);
+
+  useEffect(() => {
+    if (leave) setLeaving(true);
+  }, [leave]);
 
   useEffect(() => {
     if (!leaving) return;

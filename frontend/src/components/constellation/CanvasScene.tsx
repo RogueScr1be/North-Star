@@ -1150,7 +1150,7 @@ function SceneContent({
       {/* Geometry */}
       <EdgesLineSegments graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} citedState={citedState} />
       {selectedItem && hoveredEvidenceNodeId && <EvidenceHoverLine selectedItem={selectedItem} hoveredEvidenceNodeId={hoveredEvidenceNodeId} nodes={graph.nodes} />}
-      <NodesGeometries graph={graph} onNodeClick={onNodeClick} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedNodeId={selectedNodeId} citedState={citedState} hoveredEvidenceNodeId={hoveredEvidenceNodeId} />
+      <NodesGeometries graph={graph} onNodeClick={introActive ? undefined : onNodeClick} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedNodeId={selectedNodeId} citedState={citedState} hoveredEvidenceNodeId={hoveredEvidenceNodeId} />
       <ProjectsPoints graph={graph} semanticVisibility={semanticVisibility} selectedProjectId={selectedProjectId} />
 
       {/* Phase A: Hybrid anchor rendering (torus rings + glow sprites) */}
@@ -1165,8 +1165,11 @@ function SceneContent({
       {selectedItem && <BillboardedPanel selectedItem={selectedItem} onClose={onClearSelection ?? (() => {})} projectTitle={projectTitle} connectedCount={connectedCount} relatedNodes={relatedNodes} onEvidenceHover={onEvidenceHover} onEvidenceLeave={onEvidenceLeave} onEvidenceSelect={onEvidenceSelect} />}
 
       {/* Interactive picking layer */}
-      {/* Intro: picking layer is not mounted until the intro completes (selection disabled) */}
-      {!introActive && <PickablePerson onPersonClick={onPersonClick} />}
+      {/* Intro: node/project picking is not mounted, and node mesh click handlers are withheld, until
+          the intro completes. Hidden nodes sit stacked behind the person node and would otherwise
+          receive its clicks. */}
+      {/* Person node: clickable when idle (starts the expansion) and when complete (collapses). */}
+      {(!introActive || introPhase === 'idle') && <PickablePerson onPersonClick={onPersonClick} />}
       {!introActive && <PickableNodes graph={graph} onNodeClick={onNodeClick} semanticVisibility={semanticVisibility} />}
       {!introActive && <PickableProjects graph={graph} onProjectClick={onProjectClick} semanticVisibility={semanticVisibility} />}
 
