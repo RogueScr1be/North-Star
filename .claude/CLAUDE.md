@@ -5718,3 +5718,15 @@ Ready for demo launch with atmospheric context suggesting founder-scale ecosyste
 - `frontend/public/manifest.webmanifest` (start_url `/constellation`, standalone) + `icons/northstar-app-{192,512}.png` (detailed icon) + maskable 512 (icon at 78% inside a dark safe-zone background). Favicons stay the minimal line icon. Old `site.webmanifest` and root `icon-*.png` removed (no duplicates).
 - Verify installability with CDP `Page.getInstallabilityErrors` / `Page.getAppManifest`; `in-incognito` is just the automation context, not a defect. Installed apps cache the icon — reinstall to pick up changes, and install from the FINAL URL (a preview-installed app stays pinned to that preview).
 - Lock rule: no features after lock; branding/installability only; merge to main only after a final human check. Launcher steps: `docs/demo-lock/north-star-mac-demo-launcher.md`.
+
+### Demo RC2 lock — merge + deploy lessons (2026-10-03)
+- Any push to `main` triggers BOTH Vercel (frontend) and Railway (backend). The combined GitHub status goes "failure" if Railway fails even when Vercel succeeds — read per-context statuses (`gh api .../commits/<sha>/status --jq '.statuses[]'`), never the rollup.
+- Railway deploys have been intermittent (success on 9614a37/6d8db0a, failure on c3732d6/e49ec69) with identical backend code; a failed deploy leaves the previous deployment serving, so check the live API (`/api/graph` 200) before reacting. Logs need `railway link` (not linked here) or the dashboard.
+- Verify production by URL, not by deploy status: bundle hash changed, `manifest.webmanifest` linked, 3 URLs (plain / `?skipIntro=1` / `?selected=`) + the full interaction loop.
+- Merge only on explicit user go-ahead (production deploy); I asked, got it, ran `git merge --no-ff`, pushed once, and made no further pushes after verification (freeze).
+
+### Window-resize framing bug (installed Mac app landed too far out) — 2026-10-03
+- **Root cause (not display-mode):** the ortho frustum is a manual world-unit fit computed once from mount-time `window.innerWidth/Height`. On any later canvas resize R3F rewrites a non-`manual` ortho frustum to PIXEL dimensions → the graph renders as a tiny cluster (much wider pullback). Installed web-app windows often resize right after launch, so it showed up there first. Reproduced in plain Chrome: load 1280x800 → resize 1440x900 gave a 37%-wide graph vs 65% for a fresh load.
+- **Fix:** `GraphCamera` marks the camera `manual` and recomputes the same graph fit for the live aspect (`computeParams`, passed from `CanvasScene`). A resize now frames identically to a fresh load.
+- **Process lesson:** I was handed a standalone-only 1.2x zoom multiplier. Measuring first showed no code path reads display-mode, so the multiplier would have tightened a wrong frame for the wrong reason. Reproduce (CDP `Emulation.setEmulatedMedia` didn't even emulate display-mode; resizing did) before applying a proposed fix, and report when evidence contradicts the plan.
+- Verify framing with graph-extent measurements across viewport sizes AND load-then-resize sequences, not just one fixed size.
