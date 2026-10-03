@@ -15,17 +15,33 @@ export interface CameraFrame {
 const easeInOutCubic = (t: number): number =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-/** Extreme close-up on the origin (person node): person fills ~1/3 of viewport height. */
+/**
+ * Extreme close-up on the person node composition (ring + "Prentiss" label stack).
+ *
+ * The orthographic frustum is defined in absolute world units around the GRAPH center
+ * (left/right/top/bottom are not symmetric about 0), so the screen center maps to world
+ *   x = cam.x + (left + right) / 2,  y = cam.y + (top + bottom) / 2.
+ * (Verified against the projection matrix: Three's orthographic translation term is
+ * -(left+right)/(right-left) * zoom, i.e. the frustum-center offset is in WORLD units and is
+ * NOT divided by zoom.) To put the origin at screen center we offset the camera by the inverse.
+ */
+const PERSON_RING_RATIO = 2.15; // ring outer radius / person sphere radius (PersonNode torus)
+const CLOSEUP_RING_VIEW_FRACTION = 0.44; // ring diameter as a fraction of viewport height
+const COMPOSITION_CENTER_Y_RATIO = 0.15; // label stack sits above ring: shift view up slightly
+
 export function computeCloseUpFrame(
   camera: THREE.OrthographicCamera,
   canonical: CameraFrame,
   personRadius: number
 ): CameraFrame {
   const viewHeight = camera.top - camera.bottom;
-  const zoom = Math.max(canonical.zoom, viewHeight / (personRadius * 2 * 3));
+  const ringRadius = personRadius * PERSON_RING_RATIO;
+  const zoom = Math.max(canonical.zoom, viewHeight / (ringRadius * 2 / CLOSEUP_RING_VIEW_FRACTION));
+  const x = -(camera.left + camera.right) / 2;
+  const y = -(camera.top + camera.bottom) / 2 + personRadius * COMPOSITION_CENTER_Y_RATIO;
   return {
-    position: new THREE.Vector3(0, 0, canonical.position.z),
-    target: new THREE.Vector3(0, 0, 0),
+    position: new THREE.Vector3(x, y, canonical.position.z),
+    target: new THREE.Vector3(x, y, 0),
     zoom,
   };
 }

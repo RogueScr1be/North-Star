@@ -5,7 +5,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 14vh;
+  padding-bottom: 7vh; /* below the close-up composition (ring spans ~28%-72% of height) */
   pointer-events: none; /* never block the canvas */
   transition: opacity 600ms ease, background-color 400ms ease;
 }
