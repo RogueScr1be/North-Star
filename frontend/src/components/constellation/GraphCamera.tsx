@@ -20,6 +20,8 @@ interface GraphCameraProps {
   enableDamping?: boolean;                           // Phase 2: Enable damping for smooth momentum (default: true)
   dampingFactor?: number;                            // Phase 2: Damping factor for smooth momentum (default: 0.08)
   zoomSpeed?: number;                                // Phase 2: Zoom speed (default: 1.0 for smoother feel)
+  /** When provided, the frustum is recomputed for the live canvas aspect on resize (see below). */
+  computeParams?: (aspect: number) => CameraParams;
 }
 
 /**
@@ -38,8 +40,32 @@ export function GraphCamera({
   enableDamping = true,         // Phase 2: Enable damping for smooth momentum decay
   dampingFactor = 0.08,         // Phase 2: Smooth momentum decay strength
   zoomSpeed = 1.0,              // Phase 2: Reduced zoom speed for better control
+  computeParams,
 }: GraphCameraProps) {
   const { camera } = useThree();
+  const size = useThree(state => state.size);
+
+  // Resize handling. The frustum is a manual, world-unit fit of the graph computed once from the
+  // mount-time aspect. On any later canvas resize (e.g. an installed web-app window resizing right
+  // after launch) R3F silently rewrites a non-manual orthographic frustum to PIXEL dimensions, which
+  // renders the graph as a tiny cluster (a much wider pullback). Mark the camera manual and recompute
+  // the same graph fit for the new aspect so a resize frames exactly like a fresh load.
+  useEffect(() => {
+    if (computeParams) (camera as any).manual = true;
+  }, [camera, computeParams]);
+
+  useEffect(() => {
+    if (!computeParams || !size.width || !size.height) return;
+    const p = computeParams(size.width / size.height);
+    const c = camera as any;
+    c.left = p.left;
+    c.right = p.right;
+    c.top = p.top;
+    c.bottom = p.bottom;
+    c.near = p.near;
+    c.far = p.far;
+    c.updateProjectionMatrix();
+  }, [camera, computeParams, size.width, size.height]);
 
   useEffect(() => {
     if (cameraRef?.current) {

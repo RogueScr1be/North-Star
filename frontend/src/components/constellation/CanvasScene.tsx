@@ -936,6 +936,7 @@ function PickablePerson({
 function SceneContent({
   graph,
   cameraParams,
+  computeCameraParamsFor,
   onUnresolvedEdgesChange,
   onNodeClick,
   onProjectClick,
@@ -962,6 +963,7 @@ function SceneContent({
   introPhase?: IntroPhase;
   graph: RenderableGraph;
   cameraParams: CameraParams;
+  computeCameraParamsFor?: (aspect: number) => CameraParams;
   onUnresolvedEdgesChange?: (count: number) => void;
   onNodeClick?: (node: GraphNode) => void;
   onProjectClick?: (project: GraphProject) => void;
@@ -1127,6 +1129,7 @@ function SceneContent({
       {/* Camera */}
       <GraphCamera
         params={cameraParams}
+        computeParams={computeCameraParamsFor}
         cameraRef={cameraRef}
         controlsRef={controlsRef}
         onCameraReady={onCameraReady}
@@ -1223,11 +1226,13 @@ export function CanvasScene({
   }, []);
 
   // Compute bounds and camera parameters once from graph
-  const { cameraParams } = useMemo(() => {
+  const { cameraParams, computeCameraParamsFor } = useMemo(() => {
     const b = computeGraphBounds(graph);
     const aspect = typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 1.6;
     const cp = computeCameraParams(b, aspect, 0.1);
-    return { bounds: b, cameraParams: cp };
+    // Same graph fit for any later canvas aspect (used by GraphCamera on resize)
+    const forAspect = (a: number) => computeCameraParams(b, a, 0.1);
+    return { bounds: b, cameraParams: cp, computeCameraParamsFor: forAspect };
   }, [graph]);
 
   // Phase D: Gesture interrupt - bind manual input handlers to canvas for demo control
@@ -1279,6 +1284,7 @@ export function CanvasScene({
         <SceneContent
           graph={graph}
           cameraParams={cameraParams}
+          computeCameraParamsFor={computeCameraParamsFor}
           onUnresolvedEdgesChange={onUnresolvedEdgesChange}
           onNodeClick={onNodeClick}
           onProjectClick={onProjectClick}
