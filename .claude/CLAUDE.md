@@ -5712,3 +5712,9 @@ Ready for demo launch with atmospheric context suggesting founder-scale ecosyste
 - **Rule:** hiding an object (`visible=false` / moved to origin) doesn't stop R3F pointer events. Withhold the handlers themselves (`onNodeClick={introActive ? undefined : ...}`) in addition to unmounting pickers.
 - Only two things start the expansion from idle: the Enter button and the center person node (`enterRef` hand-off from `handlePersonClick`; overlay fades via `leave` prop).
 - QA that works: sweep clicks across the idle frame OUTSIDE the person hit radius (must change nothing), and assert a click inside it expands without setting `?selected=`. Always `mouse.move` before `mouse.click` for R3F hover/pointer state.
+
+### Demo lock: installable Mac web app (2026-10-03)
+- Path chosen: PWA (Safari "Add to Dock" / Chrome "Install page as app"), NOT Tauri/Electron/Swift before a demo — native wrappers add risk for no demo value.
+- `frontend/public/manifest.webmanifest` (start_url `/constellation`, standalone) + `icons/northstar-app-{192,512}.png` (detailed icon) + maskable 512 (icon at 78% inside a dark safe-zone background). Favicons stay the minimal line icon. Old `site.webmanifest` and root `icon-*.png` removed (no duplicates).
+- Verify installability with CDP `Page.getInstallabilityErrors` / `Page.getAppManifest`; `in-incognito` is just the automation context, not a defect. Installed apps cache the icon — reinstall to pick up changes, and install from the FINAL URL (a preview-installed app stays pinned to that preview).
+- Lock rule: no features after lock; branding/installability only; merge to main only after a final human check. Launcher steps: `docs/demo-lock/north-star-mac-demo-launcher.md`.
