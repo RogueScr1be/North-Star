@@ -26,6 +26,12 @@ import { DemoControls } from '../components/constellation/DemoControls';
 import { ResetFrameButton } from '../components/constellation/ResetFrameButton';
 import { HeroItem, findProjectItems, findNearestProject } from '../lib/graph/heroItems';
 import { isEditableElement } from '../lib/keyboard/editableElementDetection';
+import { IntroOverlay } from '../components/constellation/IntroOverlay';
+import { SplashScreen } from '../components/constellation/SplashScreen';
+import { IntroController, IntroPhase } from '../components/constellation/IntroContext';
+import { buildIntroSchedule, INTRO_CAMERA_MS, INTRO_REVERSE_MS } from '../lib/graph/introSchedule';
+import { CameraFrame, computeCloseUpFrame, applyFrame, animateFrame } from '../lib/graph/introCamera';
+import { getNodeVisualSize } from '../lib/rendering/nodeSizingConstants';
 import {
   logSemanticFilterToggled,
   logSemanticFiltersCleared,
@@ -33,7 +39,7 @@ import {
 } from '../lib/analytics/constellationAnalytics';
 import './ConstellationCanvas.css';
 
-export const ConstellationCanvas: React.FC = () => {
+const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onSplashReady }) => {
   const { data, loading, error } = useGraphData();
   const [unresolvedEdgesCount, setUnresolvedEdgesCount] = useState(0);
   const searchUIRef = useRef<SearchUIHandle>(null);
@@ -107,6 +113,25 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Phase D: Readiness flags for canonical framing capture (prevents circular dependency)
   const [controlsReady, setControlsReady] = useState(false);
+
+  // Cinematic intro (presentation-only). Skipped via ?skipIntro=1, ?selected=, or reduced motion.
+  const [introPhase, setIntroPhase] = useState<IntroPhase>(() => {
+    if (typeof window === 'undefined') return 'complete';
+    const params = new URLSearchParams(window.location.search);
+    const skip =
+      params.get('skipIntro') === '1' ||
+      params.has('selected') ||
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    return skip ? 'complete' : 'idle';
+  });
+  const introPhaseRef = useRef<IntroPhase>(introPhase);
+  const introStartRef = useRef<number>(0);
+  const introCancelRef = useRef<(() => void) | null>(null);
+  const introTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [introCloseUpReady, setIntroCloseUpReady] = useState(false);
+  const collapseRef = useRef<(() => void) | null>(null);
+  const enterRef = useRef<(() => void) | null>(null);
+  const [introCycle, setIntroCycle] = useState(0); // remounts IntroOverlay after a collapse
 
   // Phase 4C: Gesture cancellation — stop animation when user interacts with controls
   useEffect(() => {
@@ -283,6 +308,10 @@ export const ConstellationCanvas: React.FC = () => {
   const handleResetFrame = React.useCallback(() => {
     // Require camera and controls to be ready
     if (!cameraRef.current || !cameraControlsRef.current) {
+      return;
+    }
+    // Reset is unavailable while the intro owns the camera
+    if (introPhaseRef.current !== 'complete') {
       return;
     }
 
@@ -573,6 +602,16 @@ export const ConstellationCanvas: React.FC = () => {
 
   // Handle person node selection (render-layer synthetic node at origin)
   const handlePersonClick = React.useCallback(() => {
+    // Intro idle: the center node is one of the two ways (with Enter) to start the expansion
+    if (introPhaseRef.current === 'idle' && enterRef.current) {
+      enterRef.current();
+      return;
+    }
+    // Intro loop: a deliberate click on the center node collapses back to the intro frame
+    if (introPhaseRef.current === 'complete' && collapseRef.current) {
+      collapseRef.current();
+      return;
+    }
     // Create synthetic person selection
     // Since person is a render-layer node, not a backend entity, we use a synthetic data object
     clearSelection(); // Clear existing selection first
@@ -834,6 +873,144 @@ export const ConstellationCanvas: React.FC = () => {
     [renderableGraph]
   );
 
+  // ---- Cinematic intro controller (presentation-only; never touches graph data) ----
+  const finishIntro = React.useCallback(() => {
+    if (introPhaseRef.current === 'complete') return;
+    introCancelRef.current?.();
+    introCancelRef.current = null;
+    if (introTimerRef.current) {
+      clearTimeout(introTimerRef.current);
+      introTimerRef.current = null;
+    }
+    // Land exactly on the canonical frame so reset/selection behave as before
+    const canonical = canonicalFramingRef.current;
+    if (canonical && cameraRef.current && cameraControlsRef.current) {
+      applyFrame(cameraRef.current, cameraControlsRef.current, canonical);
+    }
+    if (cameraControlsRef.current) cameraControlsRef.current.enabled = true;
+    introPhaseRef.current = 'complete';
+    setIntroPhase('complete');
+  }, []);
+
+  const introController = React.useMemo<IntroController | null>(() => {
+    if (!renderableGraph) return null;
+    return {
+      schedule: buildIntroSchedule(
+        renderableGraph.projects.map(p => ({ id: p.id, gravity_score: p.gravity_score })),
+        renderableGraph.nodes.map(n => ({ id: n.id, gravity_score: n.gravity_score }))
+      ),
+      phaseRef: introPhaseRef,
+      startRef: introStartRef,
+      onFail: finishIntro,
+    };
+  }, [renderableGraph, finishIntro]);
+
+  // Place the camera in the extreme close-up once canonical framing has been captured
+  useEffect(() => {
+    if (introPhase !== 'idle' || !controlsReady || introCloseUpReady) return;
+    const canonical = canonicalFramingRef.current;
+    if (!canonical || !cameraRef.current || !cameraControlsRef.current) return;
+    try {
+      const closeUp = computeCloseUpFrame(cameraRef.current, canonical, getNodeVisualSize('person'));
+      applyFrame(cameraRef.current, cameraControlsRef.current, closeUp);
+      cameraControlsRef.current.enabled = false;
+      setIntroCloseUpReady(true);
+    } catch (err) {
+      console.warn('[Intro] close-up failed, showing complete graph', err);
+      finishIntro();
+    }
+  }, [introPhase, controlsReady, introCloseUpReady, finishIntro]);
+
+  // Watchdog: if the close-up never becomes ready, fall back to the normal graph
+  useEffect(() => {
+    if (introPhase !== 'idle' || introCloseUpReady) return;
+    const t = setTimeout(() => {
+      if (introPhaseRef.current === 'idle') finishIntro();
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [introPhase, introCloseUpReady, finishIntro]);
+
+  const handleEnterIntro = React.useCallback(() => {
+    const camera = cameraRef.current;
+    const controls = cameraControlsRef.current;
+    const canonical = canonicalFramingRef.current;
+    if (introPhaseRef.current !== 'idle' || !camera || !controls || !canonical || !introController) {
+      finishIntro();
+      return;
+    }
+    try {
+      const from: CameraFrame = {
+        position: camera.position.clone(),
+        target: controls.target.clone(),
+        zoom: camera.zoom,
+      };
+      introStartRef.current = performance.now();
+      introPhaseRef.current = 'running';
+      setIntroPhase('running');
+      introCancelRef.current = animateFrame(camera, controls, from, canonical, INTRO_CAMERA_MS, () => {
+        introCancelRef.current = null;
+      });
+      const total = Math.max(INTRO_CAMERA_MS, introController.schedule.totalMs) + 250;
+      introTimerRef.current = setTimeout(finishIntro, total);
+    } catch (err) {
+      console.warn('[Intro] failed, showing complete graph', err);
+      finishIntro();
+    }
+  }, [introController, finishIntro]);
+
+  // Reverse: clicking the center person node collapses the graph back to the intro first frame
+  // (centered person + Enter). Intro-state reversal only: no reset logic, no graph data changes.
+  const handleCollapseToIntro = React.useCallback(() => {
+    const camera = cameraRef.current;
+    const controls = cameraControlsRef.current;
+    const canonical = canonicalFramingRef.current;
+    if (introPhaseRef.current !== 'complete' || !camera || !controls || !canonical || !introController) return;
+    try {
+      document.body.style.cursor = 'auto'; // picking layer unmounts while hovered
+      handleCloseBillboard(); // clears selection + evidence hover
+      activeAnimationCleanupRef.current?.();
+      activeAnimationCleanupRef.current = null;
+      isAnimatingRef.current = false;
+      controls.enabled = false;
+
+      const closeUp = computeCloseUpFrame(camera, canonical, getNodeVisualSize('person'));
+      const settle = () => {
+        introCancelRef.current?.();
+        introCancelRef.current = null;
+        if (introTimerRef.current) { clearTimeout(introTimerRef.current); introTimerRef.current = null; }
+        applyFrame(camera, controls, closeUp);
+        controls.enabled = false;
+        introPhaseRef.current = 'idle';
+        setIntroCycle(c => c + 1);
+        setIntroPhase('idle');
+      };
+
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        settle();
+        return;
+      }
+      const from: CameraFrame = { position: camera.position.clone(), target: controls.target.clone(), zoom: camera.zoom };
+      introStartRef.current = performance.now();
+      introPhaseRef.current = 'reversing';
+      setIntroPhase('reversing');
+      introCancelRef.current = animateFrame(camera, controls, from, closeUp, INTRO_REVERSE_MS, () => {
+        introCancelRef.current = null;
+      });
+      introTimerRef.current = setTimeout(settle, INTRO_REVERSE_MS + 250);
+    } catch (err) {
+      console.warn('[Intro] collapse failed, restoring complete graph', err);
+      finishIntro();
+    }
+  }, [introController, handleCloseBillboard, finishIntro]);
+
+  useEffect(() => () => {
+    introCancelRef.current?.();
+    if (introTimerRef.current) clearTimeout(introTimerRef.current);
+  }, []);
+  const introDone = introPhase === 'complete';
+  collapseRef.current = handleCollapseToIntro;
+  enterRef.current = introCloseUpReady ? handleEnterIntro : null;
+
   // Global Cmd+K / Ctrl+K keyboard shortcut (Phase 3.2)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -865,17 +1042,16 @@ export const ConstellationCanvas: React.FC = () => {
     };
   }, []);
 
-  // Loading state
+  // Splash hand-off: signal when the first meaningful frame is ready to be revealed
+  const graphEmpty = !renderableGraph || (renderableGraph.nodes.length === 0 && renderableGraph.projects.length === 0);
+  const splashReady = !loading && (!!error || graphEmpty || (introPhase === 'idle' ? introCloseUpReady : controlsReady));
+  useEffect(() => {
+    if (splashReady) onSplashReady?.();
+  }, [splashReady, onSplashReady]);
+
+  // Loading state: splash (rendered by the wrapper) is the only visible element
   if (loading) {
-    return (
-      <div className="constellation-container constellation-state">
-        <div className="state-content">
-          <div className="spinner"></div>
-          <h2>Loading Constellation Canvas...</h2>
-          <p>Fetching graph from API</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Error state
@@ -913,6 +1089,9 @@ export const ConstellationCanvas: React.FC = () => {
   return (
     <div className="constellation-container">
       {/* Phase 10.0c+: Top search UI (AskTheGraphPanel companion) */}
+      {!introDone && introPhase !== 'reversing' && <IntroOverlay key={introCycle} ready={introCloseUpReady} onEnter={handleEnterIntro} leave={introPhase === 'running'} />}
+
+      {introDone && (
       <SearchUI
         ref={searchUIRef}
         nodes={data?.nodes ?? []}
@@ -920,6 +1099,7 @@ export const ConstellationCanvas: React.FC = () => {
         onNodeSelect={selectNode}
         onProjectSelect={selectProject}
       />
+      )}
 
       {/* Phase 8.0: Layout toggle hidden in demo mode (D3 remains experimental, never default) */}
       {false && (
@@ -930,12 +1110,14 @@ export const ConstellationCanvas: React.FC = () => {
       )}
 
       {/* Phase 5.3: Reset frame button enabled once controls are ready */}
+      {introDone && (
       <ResetFrameButton
         onClick={() => {
           handleResetFrame();
         }}
         disabled={!controlsReady}
       />
+      )}
 
       {/* Phase 3.3: Project focus controls visible only in demo mode */}
       {demoMode && (
@@ -991,6 +1173,8 @@ export const ConstellationCanvas: React.FC = () => {
           onEvidenceHover={handleEvidenceHover}
           onEvidenceLeave={handleEvidenceLeave}
           onEvidenceSelect={handleEvidenceSelect}
+          intro={introController}
+          introPhase={introPhase}
         />
       )}
 
@@ -1015,6 +1199,7 @@ export const ConstellationCanvas: React.FC = () => {
         />
       )}
 
+      {introDone && (
       <AskTheGraphPanel
         nodes={data?.nodes ?? []}
         projects={data?.projects ?? []}
@@ -1023,6 +1208,7 @@ export const ConstellationCanvas: React.FC = () => {
         onProjectSelect={selectProject}
         onEvidenceFocus={handleEvidenceFocus}
       />
+      )}
 
       {/* Dev diagnostics overlay */}
       {typeof window !== 'undefined' && (window as any).__DEV__ && (
@@ -1040,5 +1226,27 @@ export const ConstellationCanvas: React.FC = () => {
         </div>
       )}
     </div>
+  );
+};
+
+/**
+ * Wrapper: the splash lives outside the page's loading/error/main branches so one continuous
+ * element covers data loading + intro close-up setup and then fades onto the first frame.
+ */
+export const ConstellationCanvas: React.FC = () => {
+  const [splashReady, setSplashReady] = useState(false);
+  const markReady = React.useCallback(() => setSplashReady(true), []);
+
+  // Safety net: never leave the splash up indefinitely
+  useEffect(() => {
+    const t = setTimeout(() => setSplashReady(true), 12000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <>
+      <ConstellationCanvasPage onSplashReady={markReady} />
+      <SplashScreen visible={!splashReady} />
+    </>
   );
 };

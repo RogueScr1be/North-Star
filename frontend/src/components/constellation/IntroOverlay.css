@@ -1,0 +1,59 @@
+.intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 7vh; /* below the close-up composition (ring spans ~28%-72% of height) */
+  pointer-events: none; /* never block the canvas */
+  transition: opacity 600ms ease, background-color 400ms ease;
+}
+
+.intro-overlay--loading {
+  background: #000;
+}
+
+.intro-overlay--ready,
+.intro-overlay--leaving {
+  background: transparent;
+}
+
+.intro-overlay--leaving {
+  opacity: 0;
+}
+
+.intro-enter-button {
+  pointer-events: auto;
+  font: inherit;
+  font-size: 16px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  padding: 14px 40px;
+  color: #00ffd0;
+  background: rgba(0, 20, 24, 0.55);
+  border: 1px solid rgba(0, 255, 208, 0.6);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 0 24px rgba(0, 255, 208, 0.25);
+  backdrop-filter: blur(6px);
+  transition: opacity 400ms ease, box-shadow 200ms ease, background 200ms ease;
+}
+
+.intro-overlay--loading .intro-enter-button {
+  opacity: 0;
+}
+
+.intro-enter-button:hover:not(:disabled),
+.intro-enter-button:focus-visible {
+  background: rgba(0, 255, 208, 0.15);
+  box-shadow: 0 0 36px rgba(0, 255, 208, 0.5);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-overlay,
+  .intro-enter-button {
+    transition: none;
+  }
+}

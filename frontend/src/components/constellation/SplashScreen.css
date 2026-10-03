@@ -1,0 +1,31 @@
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 3000; /* above intro overlay (2000) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  opacity: 1;
+  transition: opacity 900ms ease;
+}
+
+.splash-screen--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-logo {
+  width: min(70vmin, 640px);
+  height: min(70vmin, 640px);
+  object-fit: contain;
+  border-radius: 22%;
+  box-shadow: 0 0 80px rgba(0, 200, 255, 0.35);
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-screen {
+    transition: none;
+  }
+}

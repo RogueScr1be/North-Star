@@ -5678,3 +5678,43 @@ User can now feel "larger universe of builders coming" without any product debt,
 
 Ready for demo launch with atmospheric context suggesting founder-scale ecosystem.
 
+
+---
+
+## 🎬 CONSTELLATION INTRO (RC2 CANDIDATE) — SPLIT INFRASTRUCTURE FROM DEMO POLISH (2026-10-03)
+
+**Rule:** Split infrastructure fixes from demo polish so rollback does not remove real bug fixes. A feature commit that quietly includes a bug fix is a rollback trap — stage them separately before committing.
+
+- Intro lives on `demo/constellation-intro-rc2`; main stays RC1 until a real-browser QA pass and a presentation-script decision. One QA pass; if it wobbles, ship RC1.
+- Intro commit `ef6b1c1` (revert alone to drop it); camera readiness fix `4e24a20` (keep).
+- Pre-existing bug: GraphCamera never reported OrbitControls ready in production → reset disabled. Ref-based effect deps don't re-fire; retry on frame.
+- Open, pre-existing: reset doesn't undo orbit rotation or zoom (identical with/without intro).
+- Intro guard behaviors: `?skipIntro=1`, `?selected=`, reduced motion bypass; picking layer unmounted until complete; watchdog only when close-up never becomes ready.
+- QA tooling: the Claude preview pane renders WebGL black even for clean HEAD. Use Playwright (`--use-angle=swiftshader`) and compare to a clean baseline build.
+
+### Intro framing + label polish lessons (2026-10-03)
+- **Ortho frustum offset is in WORLD units, not divided by zoom** (verified via projectionMatrix[12] = -(l+r)/(r-l)*zoom). To centre the origin: cam.x = -(left+right)/2, cam.y = -(top+bottom)/2. Don't guess camera math — dump projectionMatrix / project the origin to NDC and read the numbers.
+- Size close-ups from the *visual composition* (torus ring), not the sphere; check overlay UI doesn't collide at 4 viewport sizes (1280x800, 1440x900, 1920x1080, 2560x1080).
+- Person label stack lives in `PersonNode.tsx` (3D `Text`, not overlay): both lines sit above the ring (ring outer ≈ 2.15 × size). Title is single-line (maxWidth 8).
+- Vercel preview toolbar icons pollute pixel measurements at screen edges; judge by screenshot / composition extents, not a global bright-pixel bbox.
+- Local `vite preview` returns 404 for /favicon.ico (console error); Vercel's SPA rewrite hides it. Not a regression.
+- **Stop rule:** intro polish ends here. No more polish unless demo-blocking; RC1 remains the fallback.
+
+### Intro reverse loop (2026-10-03)
+- Person-node click (phase `complete`) collapses the graph back to the intro first frame: phases `idle -> running -> complete -> reversing -> idle`. Intro-state reversal only — NOT reset logic, no data/position changes, no splash on collapse.
+- Reverse = the forward schedule played backwards (`getReverseProgress`, 3.2s); camera animates to the close-up frame; Enter overlay only mounts when the collapse lands.
+- Gotchas: `IntroOverlay` unmounts itself after its first fade → remount with a `key` cycle counter; picking layer unmounting while hovered leaves `cursor: pointer` → reset `document.body.style.cursor` before unmounting; clicks during `running`/`reversing` are inert because pickers aren't mounted.
+- Person click previously only ran a camera focus on the origin (no billboard); that behavior is replaced by collapse once the intro is complete.
+- Rollback: revert the single `feat(constellation): allow person node to collapse intro` commit.
+
+### Idle-intro click leak (2026-10-03)
+- **Bug:** in the idle intro frame every node/project is hidden but stacked at the origin behind the person node. Unmounting the picking layer was NOT enough — `NodeGeometry` meshes carry their own `onClick`, and the parent's `onNodeClick` was still wired, so clicking the person selected a hidden skill node (billboard behind the intro).
+- **Rule:** hiding an object (`visible=false` / moved to origin) doesn't stop R3F pointer events. Withhold the handlers themselves (`onNodeClick={introActive ? undefined : ...}`) in addition to unmounting pickers.
+- Only two things start the expansion from idle: the Enter button and the center person node (`enterRef` hand-off from `handlePersonClick`; overlay fades via `leave` prop).
+- QA that works: sweep clicks across the idle frame OUTSIDE the person hit radius (must change nothing), and assert a click inside it expands without setting `?selected=`. Always `mouse.move` before `mouse.click` for R3F hover/pointer state.
+
+### Demo lock: installable Mac web app (2026-10-03)
+- Path chosen: PWA (Safari "Add to Dock" / Chrome "Install page as app"), NOT Tauri/Electron/Swift before a demo — native wrappers add risk for no demo value.
+- `frontend/public/manifest.webmanifest` (start_url `/constellation`, standalone) + `icons/northstar-app-{192,512}.png` (detailed icon) + maskable 512 (icon at 78% inside a dark safe-zone background). Favicons stay the minimal line icon. Old `site.webmanifest` and root `icon-*.png` removed (no duplicates).
+- Verify installability with CDP `Page.getInstallabilityErrors` / `Page.getAppManifest`; `in-incognito` is just the automation context, not a defect. Installed apps cache the icon — reinstall to pick up changes, and install from the FINAL URL (a preview-installed app stays pinned to that preview).
+- Lock rule: no features after lock; branding/installability only; merge to main only after a final human check. Launcher steps: `docs/demo-lock/north-star-mac-demo-launcher.md`.

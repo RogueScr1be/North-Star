@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useMemo, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { RenderableGraph } from '../../lib/graph/graphTransforms';
@@ -28,6 +28,7 @@ import type { SemanticVisibility } from '../../lib/graph/graphSemantics';
 import { logNodeSelected, logProjectSelected } from '../../lib/analytics/constellationAnalytics';
 import { getNodeVisualSize, getNodePickingSize } from '../../lib/rendering/nodeSizingConstants';
 import PostProcessingEffects from './PostProcessingEffects';
+import { IntroCtx, IntroGroup, IntroController, IntroPhase, useIntro, readIntroProgress } from './IntroContext';
 
 interface CanvasSceneProps {
   graph: RenderableGraph;
@@ -53,6 +54,8 @@ interface CanvasSceneProps {
   onEvidenceHover?: (nodeId: string) => void; // Phase 5.4: Evidence card hover callback
   onEvidenceLeave?: () => void; // Phase 5.4: Evidence card leave callback
   onEvidenceSelect?: (nodeId: string) => void; // Phase 6.1: Evidence card selection callback
+  intro?: IntroController | null; // Cinematic intro (presentation-only)
+  introPhase?: IntroPhase; // React-visible intro phase (gates picking)
 }
 
 /**
@@ -171,7 +174,8 @@ function NodesGeometries({
   return (
     <>
       {visibleNodes.map((node) => (
-        pulsarEnabled ? (
+        <IntroGroup key={`intro-node-${node.id}`} id={node.id} to={applyRenderLayerSpacing([node.x, node.y, node.z], 1.2, 1.6)}>
+        {pulsarEnabled ? (
           <PulsarNodeGeometry
             key={`node-geom-${node.id}`}
             node={node}
@@ -192,7 +196,8 @@ function NodesGeometries({
             isCited={isNodeCited(node.id)}
             hoveredForEvidence={hoveredEvidenceNodeId === node.id}
           />
-        )
+        )}
+        </IntroGroup>
       ))}
     </>
   );
@@ -296,13 +301,53 @@ function ProjectsPoints({
     // Buffer diagnostics removed (production cleanup 8.0A)
   }, [visibleProjects, positions, colors, sizes]);
 
+  // Intro (presentation-only): the points buffer is a single geometry, so display copies are
+  // mutated while the intro runs. The canonical `positions`/`colors` arrays are never written.
+  const intro = useIntro();
+  const workPositions = useMemo(() => new Float32Array(positions), [positions]);
+  const workColors = useMemo(() => new Float32Array(colors), [colors]);
+  const introSettledRef = useRef(false);
+
+  useFrame(() => {
+    if (!intro || !pointsRef.current) return;
+    const geom = pointsRef.current.geometry;
+    const posAttr = geom.attributes.position as THREE.BufferAttribute | undefined;
+    const colAttr = geom.attributes.color as THREE.BufferAttribute | undefined;
+    if (!posAttr || !colAttr || posAttr.array !== workPositions) return;
+    try {
+      const phase = intro.phaseRef.current;
+      if (phase === 'complete') {
+        if (!introSettledRef.current) {
+          workPositions.set(positions);
+          workColors.set(colors);
+          posAttr.needsUpdate = true;
+          colAttr.needsUpdate = true;
+          introSettledRef.current = true;
+        }
+        return;
+      }
+      introSettledRef.current = false;
+      for (let i = 0; i < visibleProjects.length; i++) {
+        const p = readIntroProgress(intro, visibleProjects[i].id);
+        workPositions[i * 3] = positions[i * 3] * p;
+        workPositions[i * 3 + 1] = positions[i * 3 + 1] * p;
+        workPositions[i * 3 + 2] = positions[i * 3 + 2] * p;
+        workColors[i * 4 + 3] = p > 0 ? colors[i * 4 + 3] : 0;
+      }
+      posAttr.needsUpdate = true;
+      colAttr.needsUpdate = true;
+    } catch {
+      intro.onFail();
+    }
+  });
+
   if (visibleProjects.length === 0) return null;
 
   return (
     <points ref={pointsRef}>
       <bufferGeometry key={`projects-membership-${getMembershipSignature(visibleProjects)}`}>
-        <bufferAttribute attach="attributes-position" array={positions} count={visibleProjects.length} itemSize={3} />
-        <bufferAttribute attach="attributes-color" array={colors} count={visibleProjects.length} itemSize={4} />
+        <bufferAttribute attach="attributes-position" array={workPositions} count={visibleProjects.length} itemSize={3} />
+        <bufferAttribute attach="attributes-color" array={workColors} count={visibleProjects.length} itemSize={4} />
         <bufferAttribute attach="attributes-size" array={sizes} count={visibleProjects.length} itemSize={1} />
       </bufferGeometry>
       <pointsMaterial
@@ -350,8 +395,8 @@ function ProjectTorusRings({
         const ringScale = 1.8 + (proj.gravity_score ?? 0) * 2.0;
 
         return (
+          <IntroGroup key={`torus-${proj.id}`} id={proj.id} to={pos}>
           <mesh
-            key={`torus-${proj.id}`}
             position={[pos[0], pos[1], pos[2]]}
             scale={ringScale}
           >
@@ -363,6 +408,7 @@ function ProjectTorusRings({
               wireframe={false}
             />
           </mesh>
+          </IntroGroup>
         );
       })}
     </>
@@ -422,8 +468,8 @@ function ProjectGlowSprites({
         const spriteScale = projectVisualSize * 4.0; // Halo scale increased for premium anchor luminance
 
         return (
+          <IntroGroup key={`glow-${proj.id}`} id={proj.id} to={pos}>
           <sprite
-            key={`glow-${proj.id}`}
             position={[pos[0], pos[1], pos[2] - 0.1]} // Slightly behind
             scale={spriteScale}
             renderOrder={-1}
@@ -435,6 +481,7 @@ function ProjectGlowSprites({
               depthWrite={false}
             />
           </sprite>
+          </IntroGroup>
         );
       })}
     </>
@@ -701,8 +748,8 @@ function ProjectLabels({ graph, selectedProjectId: _selectedProjectId }: { graph
         // Phase 10.1: Apply render-layer spatial expansion to project labels
         const [expandedX, expandedY, expandedZ] = applyRenderLayerSpacing(project.position, 1.2, 1.6);
         return (
+          <IntroGroup key={`label-${project.id}`} id={project.id} to={[expandedX, expandedY, expandedZ]}>
           <Text
-            key={`label-${project.id}`}
             position={[expandedX, expandedY + 2.5, expandedZ + 3.5]}
             fontSize={2.6}
             color={0xFFFFFF}
@@ -714,6 +761,7 @@ function ProjectLabels({ graph, selectedProjectId: _selectedProjectId }: { graph
           >
             {project.title}
           </Text>
+          </IntroGroup>
         );
       })}
     </>
@@ -907,7 +955,11 @@ function SceneContent({
   onEvidenceHover,
   onEvidenceLeave,
   onEvidenceSelect,
+  intro,
+  introPhase,
 }: {
+  intro?: IntroController | null;
+  introPhase?: IntroPhase;
   graph: RenderableGraph;
   cameraParams: CameraParams;
   onUnresolvedEdgesChange?: (count: number) => void;
@@ -1068,8 +1120,10 @@ function SceneContent({
     animateCamera();
   }, [selectedProjectId, graph.projects, cameraRef]);
 
+  const introActive = !!intro && introPhase !== 'complete';
+
   return (
-    <>
+    <IntroCtx.Provider value={intro ?? null}>
       {/* Camera */}
       <GraphCamera
         params={cameraParams}
@@ -1096,7 +1150,7 @@ function SceneContent({
       {/* Geometry */}
       <EdgesLineSegments graph={graph} highlightState={highlightState} semanticVisibility={semanticVisibility} citedState={citedState} />
       {selectedItem && hoveredEvidenceNodeId && <EvidenceHoverLine selectedItem={selectedItem} hoveredEvidenceNodeId={hoveredEvidenceNodeId} nodes={graph.nodes} />}
-      <NodesGeometries graph={graph} onNodeClick={onNodeClick} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedNodeId={selectedNodeId} citedState={citedState} hoveredEvidenceNodeId={hoveredEvidenceNodeId} />
+      <NodesGeometries graph={graph} onNodeClick={introActive ? undefined : onNodeClick} highlightState={highlightState} semanticVisibility={semanticVisibility} selectedNodeId={selectedNodeId} citedState={citedState} hoveredEvidenceNodeId={hoveredEvidenceNodeId} />
       <ProjectsPoints graph={graph} semanticVisibility={semanticVisibility} selectedProjectId={selectedProjectId} />
 
       {/* Phase A: Hybrid anchor rendering (torus rings + glow sprites) */}
@@ -1111,16 +1165,20 @@ function SceneContent({
       {selectedItem && <BillboardedPanel selectedItem={selectedItem} onClose={onClearSelection ?? (() => {})} projectTitle={projectTitle} connectedCount={connectedCount} relatedNodes={relatedNodes} onEvidenceHover={onEvidenceHover} onEvidenceLeave={onEvidenceLeave} onEvidenceSelect={onEvidenceSelect} />}
 
       {/* Interactive picking layer */}
-      <PickablePerson onPersonClick={onPersonClick} />
-      <PickableNodes graph={graph} onNodeClick={onNodeClick} semanticVisibility={semanticVisibility} />
-      <PickableProjects graph={graph} onProjectClick={onProjectClick} semanticVisibility={semanticVisibility} />
+      {/* Intro: node/project picking is not mounted, and node mesh click handlers are withheld, until
+          the intro completes. Hidden nodes sit stacked behind the person node and would otherwise
+          receive its clicks. */}
+      {/* Person node: clickable when idle (starts the expansion) and when complete (collapses). */}
+      {(!introActive || introPhase === 'idle') && <PickablePerson onPersonClick={onPersonClick} />}
+      {!introActive && <PickableNodes graph={graph} onNodeClick={onNodeClick} semanticVisibility={semanticVisibility} />}
+      {!introActive && <PickableProjects graph={graph} onProjectClick={onProjectClick} semanticVisibility={semanticVisibility} />}
 
       {/* Canvas background for click detection */}
       <mesh ref={bgPlane1Ref} position={[0, 0, -10]} scale={[10000, 10000, 1]} onPointerUp={(e) => e.stopPropagation()}>
         <planeGeometry />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-    </>
+    </IntroCtx.Provider>
   );
 }
 
@@ -1152,6 +1210,8 @@ export function CanvasScene({
   onEvidenceHover,        // Phase 5.4: Evidence card hover callback
   onEvidenceLeave,        // Phase 5.4: Evidence card leave callback
   onEvidenceSelect,       // Phase 5.4: Evidence card selection callback
+  intro,
+  introPhase,
 }: CanvasSceneProps) {
   // Disable raycasting on background plane to allow clicks to pass through to nodes/projects
   const bgPlane2Ref = useRef<THREE.Mesh>(null);
@@ -1238,6 +1298,8 @@ export function CanvasScene({
           onEvidenceHover={onEvidenceHover}
           onEvidenceLeave={onEvidenceLeave}
           onEvidenceSelect={onEvidenceSelect}
+          intro={intro}
+          introPhase={introPhase}
         />
 
         {/* Background mesh for canvas deselect clicks */}

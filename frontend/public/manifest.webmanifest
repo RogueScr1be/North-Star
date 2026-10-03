@@ -1,0 +1,30 @@
+{
+  "name": "North Star",
+  "short_name": "North Star",
+  "description": "A living proof graph for human capability.",
+  "start_url": "/constellation",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#05070D",
+  "icons": [
+    {
+      "src": "/icons/northstar-app-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/northstar-app-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/northstar-app-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

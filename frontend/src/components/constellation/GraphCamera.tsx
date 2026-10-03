@@ -5,8 +5,8 @@
  * Phase 5.1: Added OrbitControls for zoom/pan interaction
  */
 
-import { useEffect } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useEffect, useRef } from 'react';
+import { useThree, useFrame } from '@react-three/fiber';
 import { OrthographicCamera, OrbitControls } from '@react-three/drei';
 import { CameraParams } from '../../lib/graph/graphBounds';
 
@@ -64,9 +64,19 @@ export function GraphCamera({
 
   useEffect(() => {
     if (controlsRef?.current && onControlsReady) {
+      controlsReportedRef.current = true;
       onControlsReady(controlsRef.current);
     }
   }, [onControlsReady, controlsRef]);
+
+  // Production builds attach the drei OrbitControls ref after the effect above has run,
+  // so readiness was never reported (reset stayed disabled). Retry on early frames, once.
+  const controlsReportedRef = useRef(false);
+  useFrame(() => {
+    if (controlsReportedRef.current || !controlsRef?.current || !onControlsReady) return;
+    controlsReportedRef.current = true;
+    onControlsReady(controlsRef.current);
+  });
 
   return (
     <>
