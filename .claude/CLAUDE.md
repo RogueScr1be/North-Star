@@ -5678,3 +5678,16 @@ User can now feel "larger universe of builders coming" without any product debt,
 
 Ready for demo launch with atmospheric context suggesting founder-scale ecosystem.
 
+
+---
+
+## 🎬 CONSTELLATION INTRO (RC2 CANDIDATE) — SPLIT INFRASTRUCTURE FROM DEMO POLISH (2026-10-03)
+
+**Rule:** Split infrastructure fixes from demo polish so rollback does not remove real bug fixes. A feature commit that quietly includes a bug fix is a rollback trap — stage them separately before committing.
+
+- Intro lives on `demo/constellation-intro-rc2`; main stays RC1 until a real-browser QA pass and a presentation-script decision. One QA pass; if it wobbles, ship RC1.
+- Intro commit `ef6b1c1` (revert alone to drop it); camera readiness fix `4e24a20` (keep).
+- Pre-existing bug: GraphCamera never reported OrbitControls ready in production → reset disabled. Ref-based effect deps don't re-fire; retry on frame.
+- Open, pre-existing: reset doesn't undo orbit rotation or zoom (identical with/without intro).
+- Intro guard behaviors: `?skipIntro=1`, `?selected=`, reduced motion bypass; picking layer unmounted until complete; watchdog only when close-up never becomes ready.
+- QA tooling: the Claude preview pane renders WebGL black even for clean HEAD. Use Playwright (`--use-angle=swiftshader`) and compare to a clean baseline build.

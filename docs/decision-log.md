@@ -1,5 +1,56 @@
 # Decision Log
 
+## Phase 10.0c+ Demo Lock RC1 — Code Freeze for Presentation (2026-05-08)
+
+**Decision:** Lock North Star demo build as RC1. No code changes until demo presentation script is finalized. Accept known minor issue (reset double-click) as non-blocking for demo context.
+
+**Why:** 
+- White screen issue RESOLVED: Three.js/R3F/Drei bundling fix proven in local Playwright verification
+- SearchUI functional and acceptable: Grouped results, metadata, keyboard nav all working
+- Reset double-click issue is UX annoyance, not blocker: Workaround exists (browser refresh), not required for main demo narrative
+- Risk/value analysis: New build cycle (5–20 min) introduces risk (cache issues, new regressions) for polish-only fix (reset smoothing). Demo script should avoid heavy reset usage, so issue won't manifest.
+- Presentation script takes priority: Time better spent writing/testing narrative than iterating build cycles
+
+**Implementation:**
+1. Created `/Users/thewhitley/North Star/docs/demo-lock/constellation-demo-rc1.md` with:
+   - Production URL: https://north-star-red.vercel.app/constellation
+   - Deployed Commit SHA: 9614a37 (bundling fix)
+   - QA Status table (white screen ✅, Three.js bundled ✅, reset requires two clicks ⚠️)
+   - Known acceptable issue: reset may need two clicks (documented, workaround available)
+   - Demo scripting notes: what works well, what to avoid, fallback paths
+   - Code freeze status: no further changes until demo script finalized
+   - Rollback instructions: how to revert to prior deployment if needed
+
+2. Updated `failure-log.md` with new section "Phase 10.0c+: Runtime Browser Dependencies Externalized Without CDN (2026-05-08)"
+   - Documented root cause of white screen
+   - Captured guardrails for future bundling work
+
+3. Set code freeze: No new commits to this branch until demo script is locked
+
+**Verification:**
+- ✅ White screen resolved: Three.js bundling fix applied and locally verified
+- ✅ Constellation renders: Playwright smoke test confirms canvasCount >= 1, no module errors
+- ✅ Search functional: Grouped results, keyboard nav, metadata display all verified
+- ✅ Reset functional but slow: Circular state update causes double-click requirement (acceptable for demo)
+- ✅ All Phase 2.3–10.0b features intact: No regressions introduced
+
+**Guardrail for Future (Critical):**
+
+**Demo Lock Rule:** During code freeze, no code changes for polish-only issues (visual tweaks, behavior smoothing, non-blocker UX). Polish changes introduce build/deploy risk (cache issues, stale assets, unexpected regressions) that outweighs the marginal benefit. Instead:
+
+1. **Measure the issue against demo narrative:** Does the polish issue actually affect the presentation? (Reset double-click: No, demo script should avoid heavy reset usage)
+2. **Defer non-blocking fixes:** Batch polish work after demo script is finalized and tested
+3. **Only proceed with code changes if:** (a) Demo script requires the fix, OR (b) New blocker appears (white screen, module errors, correctness regression)
+4. **Keep rollback path ready:** All freeze-period decisions are documented so rollback is trivial if needed
+
+**Post-Demo Workflow:**
+- After demo script is written and tested: Evaluate whether reset fix is worth a final build cycle
+- If YES: Single focused commit fixing reset state machine, rebuild, deploy
+- If NO: Ship RC1 as-is (reset issue well-documented as known limitation)
+- Either outcome is acceptable; no forced decision before demo
+
+---
+
 ## Phase 10.0c+ Correction: Remove Old SearchUI Mode, Restore Canonical Search (2026-05-07 Revised)
 
 **Decision:** Remove the old `demoMode=true` icon-only search branch from SearchUI component. Restore unconditional rendering of the new `demoMode=false` text-input search. Delete VITE_ENABLE_TOP_SEARCH feature flag (no longer needed).
@@ -213,3 +264,17 @@ Bloom post-processing is visual enhancement, not essential. Clean deploy is esse
 **Commit:** Lock North Star demo build (this session)
 
 ---
+
+## Constellation Intro RC2 Candidate — Isolated Presentation Feature (2026-10-03)
+
+**Decision:** The cinematic intro (person close-up + Enter, camera pullback, batched node burst) ships as a presentation-only feature on branch `demo/constellation-intro-rc2`, NOT on main. RC1 stays the fallback.
+
+**Decision:** The `GraphCamera` readiness fix is its own commit (`4e24a20`), separate from the intro (`ef6b1c1`). The intro depends on the fix; the fix does not depend on the intro. Reverting the intro must not remove the fix.
+
+**Why:** Verified on a clean build of RC1 HEAD that `controlsReady` never became true in production builds (drei OrbitControls ref attaches after GraphCamera's effect), leaving the reset button permanently disabled. That is a real bug independent of any demo animation.
+
+**Design constraints held:** no mutation of graph data or final positions; no backend/Ask-the-Graph/search changes; bypass via `?skipIntro=1`, `?selected=`, or reduced motion; any intro failure falls back to the normal complete graph.
+
+**Promotion gate:** one real-browser preview QA pass. If it wobbles, ship RC1 — no polish iterations before the meeting.
+
+**Rollback:** `git revert ef6b1c1` (intro only). Keep `4e24a20`.

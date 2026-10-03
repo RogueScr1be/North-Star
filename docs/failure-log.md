@@ -1,5 +1,64 @@
 # Failure Log & Guardrails
 
+## Phase 10.0c+: Runtime Browser Dependencies Externalized Without CDN (2026-05-08)
+
+**Pattern:** Production build showed white screen with "Failed to resolve module specifier 'three'" error, while local preview server worked perfectly. Root cause: Three.js, R3F, and Drei were externalized in Vite/Rollup configuration without being provided at runtime (no CDN, no import map, no bundled fallback).
+
+**Failure Sequence:**
+1. vite.config.ts had no rollupOptions.external or similar, but Vite's default tree-shaking and external dependency logic was stripping Three.js/R3F/Drei from the bundle
+2. Local `npm run preview` uses dev server (unbundled modules, direct node_modules access) → Three.js available at runtime
+3. Production Vercel build runs `npm run build` → Rollup bundles and creates single JS file without Three.js → Browser receives bundle expecting "from 'three'" to resolve, but specifier not present
+4. Browser console: "Failed to resolve module specifier 'three'" (bare import cannot resolve because Three.js not bundled)
+5. React mount fails, constellation never renders, white screen
+
+**Root Cause:** Runtime browser dependencies (Three.js, R3F, Drei) must be explicitly bundled into the JS output. They cannot be:
+- Externalized and expected to be on a CDN (no CDN configured)
+- Imported as bare specifiers without a resolver (no import map in index.html)
+- Left in node_modules (not available in production browser environment)
+
+**Guardrail 1: Never Externalize Runtime Browser Dependencies**
+- Packages used in browser components must be bundled into the JS output
+- Externalization is only for: (a) already-loaded via CDN script tag, (b) import map in index.html, (c) global variables
+- Three.js, R3F, Drei are none of these → must be bundled
+- Verify in build output: No "from 'three'" should appear as bare import; all Three.js code should be inlined
+
+**Guardrail 2: Vite/Rollup Configuration Must Explicitly Include Runtime Dependencies**
+- Use `optimizeDeps.include` to pre-bundle dependencies in dev server
+- Use `resolve.dedupe` to prevent duplicate instances if dependency appears in multiple places
+- Never assume defaults will work; explicitly declare what needs bundling
+- Correct config pattern:
+  ```javascript
+  optimizeDeps: {
+    include: ['three', '@react-three/fiber', '@react-three/drei', 'three-stdlib'],
+  },
+  resolve: {
+    dedupe: ['three'],  // Prevent duplicate instances
+  },
+  ```
+
+**Guardrail 3: Playwright Runtime Smoke Test Required After Build Config Changes**
+- Static build success (npm run build exits 0) does NOT prove modules resolve at runtime
+- Local preview success does NOT prove production build works (different code path)
+- Always run browser verification after modifying vite.config.ts:
+  ```bash
+  npm run build
+  npm run preview  # Verify local preview still works
+  # Then deploy and test in production with Playwright
+  ```
+- Check for: (a) No "Failed to resolve module specifier" errors, (b) Three.js scene renders (canvasCount >= 1), (c) Console clean
+
+**Fix Applied (Commit 9614a37):**
+1. Verified `optimizeDeps.include` contains ['three', '@react-three/fiber', '@react-three/drei', 'three-stdlib']
+2. Verified no `rollupOptions.external` was stripping Three.js
+3. Verified `resolve.dedupe: ['three']` prevents duplicate Three.js instances
+4. Local `npm run build` produces bundle with Three.js inlined (no "from 'three'" bare imports)
+5. Local `npm run preview` shows constellation rendering correctly
+6. Production deployment (after Vercel rebuild) shows constellation rendering on https://north-star-red.vercel.app/constellation
+
+**Why This Matters:** Bundling vs externalization is a build-time decision, not a runtime rescue. Production builds are deterministic; if Three.js isn't included at bundle time, it won't be available at runtime. Local development masks this because dev server has node_modules access.
+
+---
+
 ## Phase 10.0c+ Correction: Incorrect SearchUI Gating Strategy (2026-05-07 Revised)
 
 **Issue:** Commit 14cfc81 attempted to fix stale UI regression by gating the entire SearchUI component behind `VITE_ENABLE_TOP_SEARCH=false`. This approach was fundamentally incorrect and caused a white-screen regression on the `/constellation` route.
@@ -244,3 +303,20 @@ All four checks must pass. Single missing link means analytics is falling back t
 **Do not continue feature work after demo lock without checkpoints.** The next workstream is presentation + deck. If new features are needed after demo lock, create rollback checkpoints in git (tags) to ensure demo stability is preserved.
 
 ---
+
+---
+
+## Reset readiness blocked by controlsRef timing in production (found 2026-10-03)
+
+**Symptom:** `.reset-frame-button` stayed `disabled` in production builds (verified on a clean RC1 build); canonical framing was never captured via `controlsReady`.
+
+**Root cause:** `GraphCamera` reported `onControlsReady` from a mount effect, but the drei `OrbitControls` ref was not yet populated at that moment in production builds. Effect deps on refs never re-fire.
+
+**Fix:** one-time retry in `GraphCamera` `useFrame` (`4e24a20`).
+
+**Still open (pre-existing, not intro-related):** after rotating the orbit then pressing Reset, the rotated view is not restored (identical with and without the intro); `animateCamera` does not restore zoom, so reset after a project selection (which zooms 1.5x) does not return to the original zoom. Previously unreachable because reset was disabled.
+
+**Guardrails:**
+1. Never gate behavior on a ref being non-null inside a mount effect; retry on frame or use a callback ref.
+2. Infrastructure fixes and demo animation features must be separate commits so rollback never removes a real bug fix.
+3. A debug canvas pane may not render WebGL; use Playwright/real browser for visual QA and compare against a clean baseline build before blaming your change.
