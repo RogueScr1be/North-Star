@@ -27,6 +27,7 @@ import { ResetFrameButton } from '../components/constellation/ResetFrameButton';
 import { HeroItem, findProjectItems, findNearestProject } from '../lib/graph/heroItems';
 import { isEditableElement } from '../lib/keyboard/editableElementDetection';
 import { IntroOverlay } from '../components/constellation/IntroOverlay';
+import { SplashScreen } from '../components/constellation/SplashScreen';
 import { IntroController, IntroPhase } from '../components/constellation/IntroContext';
 import { buildIntroSchedule, INTRO_CAMERA_MS } from '../lib/graph/introSchedule';
 import { CameraFrame, computeCloseUpFrame, applyFrame, animateFrame } from '../lib/graph/introCamera';
@@ -38,7 +39,7 @@ import {
 } from '../lib/analytics/constellationAnalytics';
 import './ConstellationCanvas.css';
 
-export const ConstellationCanvas: React.FC = () => {
+const ConstellationCanvasPage: React.FC<{ onSplashReady?: () => void }> = ({ onSplashReady }) => {
   const { data, loading, error } = useGraphData();
   const [unresolvedEdgesCount, setUnresolvedEdgesCount] = useState(0);
   const searchUIRef = useRef<SearchUIHandle>(null);
@@ -981,17 +982,16 @@ export const ConstellationCanvas: React.FC = () => {
     };
   }, []);
 
-  // Loading state
+  // Splash hand-off: signal when the first meaningful frame is ready to be revealed
+  const graphEmpty = !renderableGraph || (renderableGraph.nodes.length === 0 && renderableGraph.projects.length === 0);
+  const splashReady = !loading && (!!error || graphEmpty || (introPhase === 'idle' ? introCloseUpReady : controlsReady));
+  useEffect(() => {
+    if (splashReady) onSplashReady?.();
+  }, [splashReady, onSplashReady]);
+
+  // Loading state: splash (rendered by the wrapper) is the only visible element
   if (loading) {
-    return (
-      <div className="constellation-container constellation-state">
-        <div className="state-content">
-          <img className="loading-logo" src="/splash-logo.png" alt="North Star" width={96} height={96} />
-          <h2>Loading Constellation Canvas...</h2>
-          <p>Fetching graph from API</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Error state
@@ -1166,5 +1166,27 @@ export const ConstellationCanvas: React.FC = () => {
         </div>
       )}
     </div>
+  );
+};
+
+/**
+ * Wrapper: the splash lives outside the page's loading/error/main branches so one continuous
+ * element covers data loading + intro close-up setup and then fades onto the first frame.
+ */
+export const ConstellationCanvas: React.FC = () => {
+  const [splashReady, setSplashReady] = useState(false);
+  const markReady = React.useCallback(() => setSplashReady(true), []);
+
+  // Safety net: never leave the splash up indefinitely
+  useEffect(() => {
+    const t = setTimeout(() => setSplashReady(true), 12000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <>
+      <ConstellationCanvasPage onSplashReady={markReady} />
+      <SplashScreen visible={!splashReady} />
+    </>
   );
 };
