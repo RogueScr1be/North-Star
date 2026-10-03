@@ -5691,3 +5691,11 @@ Ready for demo launch with atmospheric context suggesting founder-scale ecosyste
 - Open, pre-existing: reset doesn't undo orbit rotation or zoom (identical with/without intro).
 - Intro guard behaviors: `?skipIntro=1`, `?selected=`, reduced motion bypass; picking layer unmounted until complete; watchdog only when close-up never becomes ready.
 - QA tooling: the Claude preview pane renders WebGL black even for clean HEAD. Use Playwright (`--use-angle=swiftshader`) and compare to a clean baseline build.
+
+### Intro framing + label polish lessons (2026-10-03)
+- **Ortho frustum offset is in WORLD units, not divided by zoom** (verified via projectionMatrix[12] = -(l+r)/(r-l)*zoom). To centre the origin: cam.x = -(left+right)/2, cam.y = -(top+bottom)/2. Don't guess camera math — dump projectionMatrix / project the origin to NDC and read the numbers.
+- Size close-ups from the *visual composition* (torus ring), not the sphere; check overlay UI doesn't collide at 4 viewport sizes (1280x800, 1440x900, 1920x1080, 2560x1080).
+- Person label stack lives in `PersonNode.tsx` (3D `Text`, not overlay): both lines sit above the ring (ring outer ≈ 2.15 × size). Title is single-line (maxWidth 8).
+- Vercel preview toolbar icons pollute pixel measurements at screen edges; judge by screenshot / composition extents, not a global bright-pixel bbox.
+- Local `vite preview` returns 404 for /favicon.ico (console error); Vercel's SPA rewrite hides it. Not a regression.
+- **Stop rule:** intro polish ends here. No more polish unless demo-blocking; RC1 remains the fallback.
