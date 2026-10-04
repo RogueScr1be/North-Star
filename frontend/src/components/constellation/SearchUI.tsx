@@ -310,6 +310,13 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
     [isOpen, flatResults, recentSearches, showRecents, highlightedIndex, selectFromKeyboard]
   );
 
+  // Pressing inside the dropdown must not blur the input: blur closes the dropdown after 100ms, so a
+  // click held longer than that (normal trackpad/mouse presses) unmounted the result before its
+  // click event fired and nothing was selected. Prevent the mousedown focus change instead.
+  const keepInputFocus = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+  }, []);
+
   // Close on blur
   const handleBlur = useCallback(() => {
     // Use setTimeout to allow click handlers to fire first
@@ -456,6 +463,7 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
       {isOpen && results.length > 0 && !showRecents && (
         <div
           className="search-results"
+          onMouseDown={keepInputFocus}
           id="search-results"
           role="listbox"
         >
@@ -513,7 +521,8 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
 
       {/* Recent searches */}
       {isOpen && showRecents && recentSearches.length > 0 && (
-        <div className="search-results" id="search-results" role="listbox">
+        <div className="search-results"
+          onMouseDown={keepInputFocus} id="search-results" role="listbox">
           <div className="search-recents-header">Recent searches</div>
           {recentSearches.map((recentQuery, index) => (
             <button
@@ -539,7 +548,8 @@ const SearchUIComponent: React.ForwardRefRenderFunction<SearchUIHandle, SearchUI
 
       {/* Pinned and recent navigation items (Phase 3.4) */}
       {isOpen && !query.trim() && showRecents && (pinnedItems.length > 0 || recentItems.length > 0) && (
-        <div className="search-results" id="search-results" role="listbox">
+        <div className="search-results"
+          onMouseDown={keepInputFocus} id="search-results" role="listbox">
           {/* Pinned items section */}
           {pinnedItems.length > 0 && (
             <div className="search-result-group">
